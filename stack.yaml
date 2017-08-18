@@ -1,0 +1,30 @@
+resolver: nightly-2017-08-15
+
+packages:
+- '.'
+- '../SciFlow'
+- '../Taiji-RNA-seq'
+
+- location:
+    git: https://github.com/Taiji-pipeline/bio-pipelines.git
+    commit: 3968132a8ba36aeaf77562d62d7861c85c61083e
+
+- location:
+    git: https://github.com/Taiji-pipeline/bio-experiments.git
+    commit: 821fa7d109fb535a7eea389a49c45e51b3b37242
+
+#- location:
+#    git: https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
+#    commit: 9c5a912228c5d4b06ec1b24e1dd03c35ff9eaf14
+
+- location:
+    git: https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
+    commit: c2a949f13628942643bc81dfaf338343e5330a19
+
+extra-deps:
+- bioinformatics-toolkit-0.3.2
+- HsHTSLib-1.3.2.2
+- cereal-vector-0.2.0.1
+- rainbow-0.28.0.4
+- lens-simple-0.1.0.9
+- drmaa-0.2.0

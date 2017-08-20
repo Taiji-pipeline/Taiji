@@ -3,7 +3,6 @@ resolver: nightly-2017-08-15
 packages:
 - '.'
 - '../SciFlow'
-- '../Taiji-RNA-seq'
 
 - location:
     git: https://github.com/Taiji-pipeline/bio-pipelines.git
@@ -13,9 +12,9 @@ packages:
     git: https://github.com/Taiji-pipeline/bio-experiments.git
     commit: 821fa7d109fb535a7eea389a49c45e51b3b37242
 
-#- location:
-#    git: https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
-#    commit: 9c5a912228c5d4b06ec1b24e1dd03c35ff9eaf14
+- location:
+    git: https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
+    commit: c576b2e85dcd8cde0c23c3561610ad1dc7fab6a2
 
 - location:
     git: https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git

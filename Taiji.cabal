@@ -8,7 +8,7 @@ license-file:        LICENSE
 author:              Kai Zhang
 maintainer:          kai@kzhang.org
 copyright:           (c) 2017 Kai Zhang
-category:            Web
+category:            Bio
 build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
@@ -16,14 +16,25 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   ghc-options:         -Wall
+
   exposed-modules:     Taiji.Core.Config
+                       Taiji.Core.Functions
+                       Taiji.Core
+
   build-depends:       base >= 4.7 && < 5
                      , aeson
+                     , bytestring
                      , bio-pipelines
                      , bio-experiments
+                     , bioinformatics-toolkit
+                     , conduit-combinators
                      , data-default
+                     , data-ordlist
                      , lens
-                     , SciFlow
+                     , mtl
+                     , singletons
+                     , SciFlow >= 0.6.1
+                     , temporary
                      , Taiji-ATAC-seq
                      , Taiji-RNA-seq
   default-language:    Haskell2010
@@ -34,7 +45,7 @@ executable taiji
   ghc-options:         -threaded
   build-depends:       base
                      , lens
-                     , SciFlow
+                     , SciFlow >= 0.6.1
                      , Taiji
                      , Taiji-ATAC-seq
                      , Taiji-RNA-seq
@@ -42,4 +53,4 @@ executable taiji
 
 source-repository head
   type:     git
-  location: https://github.com/githubuser/Taiji
+  location: https://github.com/Taiji-pipeline/Taiji.git

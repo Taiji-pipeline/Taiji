@@ -20,3 +20,4 @@ mainWith defaultMainOpts { programHeader = "Taiji" } $ do
     ["Initialization"] ~> "RNA_Make_Index"
     ["Initialization"] ~> "ATAC_Make_Index"
     path ["ATAC_Merge_Bed", "Find_Active_Promoter"]
+    ["Find_Active_Promoter", "ATAC_Get_TFBS"] ~> "Link_Gene_TF_prep"

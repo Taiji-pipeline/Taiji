@@ -17,9 +17,10 @@ library
   hs-source-dirs:      src
   ghc-options:         -Wall
 
-  exposed-modules:     Taiji.Core.Config
+  exposed-modules:     Taiji.Core
+                       Taiji.Core.Config
                        Taiji.Core.Functions
-                       Taiji.Core
+                       Taiji.Core.Types
 
   build-depends:       base >= 4.7 && < 5
                      , aeson
@@ -27,16 +28,26 @@ library
                      , bio-pipelines
                      , bio-experiments
                      , bioinformatics-toolkit
+                     , binary
+                     , containers
+                     , unordered-containers
+                     , case-insensitive
                      , conduit-combinators
                      , data-default
                      , data-ordlist
+                     , haskell-igraph
+                     , IntervalMap
                      , lens
+                     , matrices
                      , mtl
                      , singletons
                      , SciFlow >= 0.6.1
                      , temporary
+                     , text
                      , Taiji-ATAC-seq
                      , Taiji-RNA-seq
+                     , vector
+                     , vector-binary-instances
   default-language:    Haskell2010
 
 executable taiji

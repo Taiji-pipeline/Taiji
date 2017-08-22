@@ -4,11 +4,10 @@
 module Taiji.Core.Functions
     ( getActivePromoter
     , linkGeneToTFs
+    , getTFRanksPrep
+    , getTFRanks
     ) where
 
-import           IGraph
-import           IGraph.Structure                  (pagerank,
-                                                    personalizedPagerank)
 import           Bio.Data.Bed            (BED (..), BED3 (..), BEDLike (..))
 import qualified Bio.Data.Bed            as Bed
 import           Bio.Data.Experiment
@@ -19,29 +18,33 @@ import           Bio.Pipeline.CallPeaks
 import           Bio.Pipeline.Instances  ()
 import           Bio.Pipeline.NGS
 import           Bio.Pipeline.Utils      (getPath)
-import           Bio.Utils.Misc          (readInt)
+import           Bio.Utils.Functions     (scale)
+import           Bio.Utils.Misc          (readDouble, readInt)
 import           Conduit
 import           Control.Arrow
-import           Control.Lens hiding (pre)
+import           Control.Lens            hiding (pre)
 import           Control.Monad.Reader    (asks)
-import           Data.Binary             (encodeFile)
+import           Data.Binary             (decodeFile, encodeFile)
 import qualified Data.ByteString.Char8   as B
 import           Data.CaseInsensitive    (mk)
 import           Data.Function           (on)
-import qualified Data.HashMap.Strict     as M
-import qualified Data.Set as S
+import qualified Data.Map.Strict     as M
 import qualified Data.IntervalMap.Strict as IM
-import           Data.List               (foldl1', groupBy, sortBy)
+import           Data.List               (foldl1', groupBy, sortBy, transpose)
 import           Data.List.Ordered       (nubSort)
 import           Data.Maybe              (fromJust, mapMaybe)
 import           Data.Ord                (comparing)
+import qualified Data.Set                as S
 import           Data.Singletons         (SingI)
 import qualified Data.Text               as T
+import qualified Data.Vector.Unboxed     as U
+import           IGraph
+import           IGraph.Structure        (pagerank, personalizedPagerank)
 import           Scientific.Workflow
 import           System.IO.Temp          (withTempFile)
 
 import           Taiji.Core.Config
-import           Taiji.Core.Types        (Linkage, GeneName)
+import           Taiji.Core.Types        (GeneName, Linkage)
 
 getActivePromoter :: SingI tags
                   => ATACSeq (File tags 'Bed)
@@ -148,7 +151,24 @@ findRegulators activePro contacts tfbs = do
         getRegulatoryDomains (BasalPlusExtension 5000 1000 1000000) tss
 {-# INLINE findRegulators #-}
 
-pageRank :: Maybe (M.HashMap GeneName (Double, Double))   -- ^ Expression data
+getTFRanksPrep :: (Maybe (File '[] 'Tsv), [(T.Text, File '[] 'Other)])
+               -> IO [( Maybe (M.Map GeneName (Double, Double))
+                      , (T.Text, File '[] 'Other) )]
+getTFRanksPrep (geneExpr, links) = case geneExpr of
+    Nothing -> return $ map (\x -> (Nothing, x)) links
+    Just e -> do
+        rnaseqData <- readExpression (e^.location) 1
+        return $ flip map links $ \(grp, x) ->
+            (lookup (B.pack $ T.unpack grp) rnaseqData, (grp, x))
+
+getTFRanks :: ( Maybe (M.Map GeneName (Double, Double))
+              , (T.Text, File '[] 'Other) )
+           -> IO (T.Text, [(GeneName, Double)])
+getTFRanks (expr, (grp, fl)) = do
+    gr <- fmap buildNet $ decodeFile $ fl^.location
+    return (grp, pageRank expr gr)
+
+pageRank :: Maybe (M.Map GeneName (Double, Double))   -- ^ Expression data
          -> LGraph D GeneName ()
          -> [(GeneName, Double)]
 pageRank expr gr = flip mapMaybe (zip [0..] ranks) $ \(i, rank) ->
@@ -160,14 +180,34 @@ pageRank expr gr = flip mapMaybe (zip [0..] ranks) $ \(i, rank) ->
     tfs = S.fromList $ filter (not . null . pre gr) $ nodes gr
     ranks = case expr of
         Just expr' ->
-            let lookupExpr x = M.lookupDefault (0.01,-10) x expr'
+            let lookupExpr x = M.findWithDefault (0.01,-10) x expr'
                 nodeWeights = map (exp . snd . lookupExpr) labs
                 edgeWeights = map (sqrt . fst . lookupExpr . nodeLab gr . snd) $
                     edges gr
             in personalizedPagerank gr nodeWeights (Just edgeWeights) 0.85
         Nothing -> pagerank gr Nothing 0.85
+{-# INLINE pageRank #-}
 
-buildNet :: [Linkage] -> IO (LGraph D GeneName ())
-buildNet links = return $ fromLabeledEdges $ flip concatMap links $ \(a, b) ->
+buildNet :: [Linkage] -> LGraph D GeneName ()
+buildNet links = fromLabeledEdges $ flip concatMap links $ \(a, b) ->
     zip (zip (repeat a) $ fst $ unzip b) $ repeat ()
 {-# INLINE buildNet #-}
+
+-- | Read RNA expression data
+readExpression :: FilePath
+               -> Double    -- ^ Threshold to call a gene as non-expressed
+               -> IO [( B.ByteString    -- ^ cell type
+                     , M.Map GeneName (Double, Double)  -- ^ absolute value and z-score
+                     )]
+readExpression fl cutoff = do
+    c <- B.readFile fl
+    let ((_:header):dat) = map (B.split '\t') $ B.lines c
+        rowNames = map (mk . head) dat
+        dataTable = map (map readDouble . tail) dat
+    return $ zipWith (\a b -> (a, M.fromList $ zip rowNames b)) header $
+        transpose $ zipWith zip dataTable $ map computeZscore dataTable
+  where
+    computeZscore xs
+        | all (<cutoff) xs || all (==head xs) xs = replicate (length xs) (-10)
+        | otherwise = U.toList $ scale $ U.fromList xs
+{-# INLINE readExpression #-}

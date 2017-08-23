@@ -5,9 +5,9 @@ module Main where
 import           Control.Lens           ((.=))
 import           Scientific.Workflow
 import           Taiji.Core             (builder)
-import           Taiji.Core.Config      (TaijiConfig)
 import qualified Taiji.Pipeline.ATACSeq as ATACSeq
 import qualified Taiji.Pipeline.RNASeq  as RNASeq
+import           Taiji.Types            (TaijiConfig)
 
 initialization :: () -> WorkflowConfig TaijiConfig ()
 initialization _ = return ()

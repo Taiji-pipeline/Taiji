@@ -1,12 +1,12 @@
-resolver: nightly-2017-08-15
+resolver: nightly-2017-08-20
 
 packages:
 - '.'
-- '../SciFlow'
+- '../Taiji-types'
 
 - location:
     git: https://github.com/Taiji-pipeline/bio-pipelines.git
-    commit: f6b87b77b7835d18078cf88d070851ccb08eaf62
+    commit: 1989e84be6b55d64543ae91a79da82c309058ad1
 
 - location:
     git: https://github.com/Taiji-pipeline/bio-experiments.git
@@ -20,11 +20,13 @@ packages:
     git: https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
     commit: ade0f99f2191ff39a9a1ef5dd62fddaff8d8dead
 
+- location:
+    git: https://github.com/kaizhang/SciFlow.git
+    commit: 997ea40bff1552248052fd82611094dd06dec217
+
 extra-deps:
 - bioinformatics-toolkit-0.3.2
 - HsHTSLib-1.3.2.2
 - cereal-vector-0.2.0.1
-- rainbow-0.28.0.4
-- lens-simple-0.1.0.9
 - drmaa-0.2.0
 - haskell-igraph-0.3.0

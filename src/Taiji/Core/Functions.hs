@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 module Taiji.Core.Functions
@@ -17,21 +18,21 @@ import           Bio.GO.GREAT            (AssocRule (..),
 import           Bio.Pipeline.CallPeaks
 import           Bio.Pipeline.Instances  ()
 import           Bio.Pipeline.NGS
-import           Bio.Pipeline.Utils      (getPath)
+import           Bio.Pipeline.Utils      (asDir, getPath)
 import           Bio.Utils.Functions     (scale)
 import           Bio.Utils.Misc          (readDouble, readInt)
 import           Conduit
 import           Control.Arrow
 import           Control.Lens            hiding (pre)
 import           Control.Monad.Reader    (asks)
-import           Data.Binary             (decodeFile, encodeFile)
+import           Data.Binary             (Binary (..), decodeFile, encodeFile)
 import qualified Data.ByteString.Char8   as B
-import           Data.CaseInsensitive    (mk)
+import           Data.CaseInsensitive    (CI, mk, original)
 import           Data.Function           (on)
-import qualified Data.Map.Strict     as M
 import qualified Data.IntervalMap.Strict as IM
 import           Data.List               (foldl1', groupBy, sortBy, transpose)
 import           Data.List.Ordered       (nubSort)
+import qualified Data.Map.Strict         as M
 import           Data.Maybe              (fromJust, mapMaybe)
 import           Data.Ord                (comparing)
 import qualified Data.Set                as S
@@ -44,14 +45,23 @@ import           Scientific.Workflow
 import           System.IO.Temp          (withTempFile)
 
 import           Taiji.Core.Config
-import           Taiji.Core.Types        (GeneName, Linkage)
+import           Taiji.Types
+
+type GeneName = CI B.ByteString
+
+instance Binary (CI B.ByteString) where
+    put = put . original
+    get = fmap mk get
+
+-- | Gene and its regulators
+type Linkage = (GeneName, [(GeneName, [BED])])
 
 getActivePromoter :: SingI tags
                   => ATACSeq (File tags 'Bed)
                   -> WorkflowConfig TaijiConfig (ATACSeq (File tags 'Bed))
 getActivePromoter input = do
     anno <- fromJust <$> asks _taiji_annotation
-    dir <- asks _taiji_output_dir >>= getPath
+    dir <- asks (asDir . _taiji_output_dir) >>= getPath
     let fun output fl = liftIO $ withTempFile "./" "tmp_macs2_file." $ \tmp _ -> do
             _ <- callPeaks tmp fl Nothing $ cutoff .= QValue 0.1
             peaks <- Bed.readBed' tmp :: IO [BED3]
@@ -93,7 +103,7 @@ linkGeneToTFs :: ATACSeq ( File tags2 'Bed          -- ^ Active promoters
                          , File tags3 'Bed )        -- ^ TFBS
               -> WorkflowConfig TaijiConfig (T.Text, File '[] 'Other)
 linkGeneToTFs atac = do
-    dir <- asks _taiji_output_dir >>= getPath
+    dir <- asks (asDir . _taiji_output_dir) >>= getPath
     liftIO $ do
         tfSites <- Bed.readBed' $ tfbs^.location
         activePro <- Bed.readBed' $ activeProFl^.location

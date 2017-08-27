@@ -14,7 +14,7 @@ instance ATACSeqConfig TaijiConfig where
     _atacseq_output_dir = asDir . (++ "/ATACSeq") . _taiji_output_dir
     _atacseq_input = _taiji_input
     _atacseq_picard = _taiji_picard
-    _atacseq_bwa_index = _taiji_bwa_index
+    _atacseq_bwa_index = fmap (++ "/genome.fa") . _taiji_bwa_index
     _atacseq_genome_fasta = _taiji_genome
     _atacseq_genome_index = _taiji_genome_index
     _atacseq_motif_file = _taiji_motif_file

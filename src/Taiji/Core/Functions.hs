@@ -188,7 +188,8 @@ getTFRanks (expr, (grp, fl)) = do
 outputRank :: [(T.Text, [(GeneName, Double)])]
            -> WorkflowConfig TaijiConfig FilePath
 outputRank results = do
-    output <- asks _taiji_output_dir >>= getPath . asDir . (++"/GeneRanks.tsv")
+    dir <- asks _taiji_output_dir >>= getPath . asDir
+    let output = dir ++ "/GeneRanks.tsv"
     liftIO $ B.writeFile output $ B.unlines $
         header : zipWith toBS (map original genes) (transpose ranks)
     return output

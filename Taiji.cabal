@@ -20,6 +20,7 @@ library
   exposed-modules:     Taiji.Core
                        Taiji.Core.Config
                        Taiji.Core.Functions
+                       Taiji.Core.Exporter
 
   build-depends:       base >= 4.7 && < 5
                      , aeson
@@ -29,6 +30,8 @@ library
                      , bioinformatics-toolkit
                      , binary
                      , containers
+                     , double-conversion
+                     , deepseq
                      , unordered-containers
                      , case-insensitive
                      , conduit-combinators
@@ -48,6 +51,7 @@ library
                      , Taiji-types
                      , vector
                      , vector-binary-instances
+                     , zlib
   default-language:    Haskell2010
 
 executable taiji

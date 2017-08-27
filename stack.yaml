@@ -1,28 +1,31 @@
-resolver: nightly-2017-08-20
+resolver: nightly-2017-08-25
 
 packages:
 - '.'
-- '../Taiji-types'
-
-- location:
-    git: https://github.com/Taiji-pipeline/bio-pipelines.git
-    commit: 1989e84be6b55d64543ae91a79da82c309058ad1
-
-- location:
-    git: https://github.com/Taiji-pipeline/bio-experiments.git
-    commit: 821fa7d109fb535a7eea389a49c45e51b3b37242
-
-- location:
-    git: https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
-    commit: 60067633fe9b83580acae14e8bd2ddf2e04ca6d1
-
-- location:
-    git: https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-    commit: ade0f99f2191ff39a9a1ef5dd62fddaff8d8dead
 
 - location:
     git: https://github.com/kaizhang/SciFlow.git
     commit: 997ea40bff1552248052fd82611094dd06dec217
+
+- location:
+    git: https://github.com/Taiji-pipeline/Taiji-types.git
+    commit: 61f13cc6f4d63b9ce3712710dcdd716c19aba487
+
+- location:
+    git: https://github.com/Taiji-pipeline/bio-pipelines.git
+    commit: 2eda18bc862a27767465126f6a79f7520ae2cf88
+
+- location:
+    git: https://github.com/Taiji-pipeline/bio-experiments.git
+    commit: 1cd9f244edaacbd1c49b64df127c3943adfcf5d6
+
+- location:
+    git: https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
+    commit: f873540f674d38368fd609314061e641036a660d
+
+- location:
+    git: https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
+    commit: 82f31b8222c176a4cfa70fd69e04682c7066d6fc
 
 extra-deps:
 - bioinformatics-toolkit-0.3.2

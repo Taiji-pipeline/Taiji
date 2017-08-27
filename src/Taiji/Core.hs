@@ -8,6 +8,7 @@ import qualified Data.Map.Strict      as M
 import           Scientific.Workflow
 
 import           Taiji.Core.Functions
+import           Taiji.Core.Exporter (exportResults)
 
 builder :: Builder ()
 builder = do
@@ -24,4 +25,7 @@ builder = do
 
     node "TFRank_Prep" 'getTFRanksPrep $ return ()
     nodeP 1 "TFRank" 'getTFRanks $ return ()
-    ["TFRank_Prep"] ~> "TFRank"
+    nodeS "Output_Rank" 'outputRank $ return ()
+    path ["TFRank_Prep", "TFRank", "Output_Rank"]
+
+    nodeS "Export_Results" 'exportResults $ return ()

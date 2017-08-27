@@ -17,8 +17,9 @@ mainWith defaultMainOpts { programHeader = "Taiji" } $ do
     namespace "ATAC" ATACSeq.builder
     builder
     nodeS "Initialization" 'initialization $ submitToRemote .= Just False
-    ["Initialization"] ~> "RNA_Make_Index"
-    ["Initialization"] ~> "ATAC_Make_Index"
+    ["Initialization"] ~> "RNA_Read_Input"
+    ["Initialization"] ~> "ATAC_Read_Input"
     path ["ATAC_Merge_Bed", "Find_Active_Promoter"]
     ["Find_Active_Promoter", "ATAC_Get_TFBS"] ~> "Link_Gene_TF_Prep"
     ["RNA_Make_Expr_Table", "Link_Gene_TF"] ~> "TFRank_Prep"
+    ["Output_Rank", "RNA_Make_Expr_Table", "Link_Gene_TF"] ~> "Export_Results"

@@ -7,44 +7,51 @@ module Taiji.Core.Functions
     , linkGeneToTFs
     , getTFRanksPrep
     , getTFRanks
+    , outputRank
+    , buildNet
     ) where
 
-import           Bio.Data.Bed            (BED (..), BED3 (..), BEDLike (..))
-import qualified Bio.Data.Bed            as Bed
+import           Bio.Data.Bed                      (BED (..), BED3 (..),
+                                                    BEDLike (..))
+import qualified Bio.Data.Bed                      as Bed
 import           Bio.Data.Experiment
-import           Bio.GO.GREAT            (AssocRule (..),
-                                          get3DRegulatoryDomains,
-                                          getRegulatoryDomains)
+import           Bio.GO.GREAT                      (AssocRule (..),
+                                                    get3DRegulatoryDomains,
+                                                    getRegulatoryDomains)
 import           Bio.Pipeline.CallPeaks
-import           Bio.Pipeline.Instances  ()
+import           Bio.Pipeline.Instances            ()
 import           Bio.Pipeline.NGS
-import           Bio.Pipeline.Utils      (asDir, getPath)
-import           Bio.Utils.Functions     (scale)
-import           Bio.Utils.Misc          (readDouble, readInt)
+import           Bio.Pipeline.Utils                (asDir, getPath)
+import           Bio.Utils.Functions               (scale)
+import           Bio.Utils.Misc                    (readDouble, readInt)
 import           Conduit
 import           Control.Arrow
-import           Control.Lens            hiding (pre)
-import           Control.Monad.Reader    (asks)
-import           Data.Binary             (Binary (..), decodeFile, encodeFile)
-import qualified Data.ByteString.Char8   as B
-import           Data.CaseInsensitive    (CI, mk, original)
-import           Data.Function           (on)
-import qualified Data.IntervalMap.Strict as IM
-import           Data.List               (foldl1', groupBy, sortBy, transpose)
-import           Data.List.Ordered       (nubSort)
-import qualified Data.Map.Strict         as M
-import           Data.Maybe              (fromJust, mapMaybe)
-import           Data.Ord                (comparing)
-import qualified Data.Set                as S
-import           Data.Singletons         (SingI)
-import qualified Data.Text               as T
-import qualified Data.Vector.Unboxed     as U
+import           Control.Lens                      hiding (pre)
+import           Control.Monad.Reader              (asks)
+import           Data.Binary                       (Binary (..), decodeFile,
+                                                    encodeFile)
+import qualified Data.ByteString.Char8             as B
+import           Data.CaseInsensitive              (CI, mk, original)
+import           Data.Double.Conversion.ByteString (toShortest)
+import           Data.Function                     (on)
+import qualified Data.IntervalMap.Strict           as IM
+import           Data.List                         (foldl1', groupBy, sortBy,
+                                                    transpose)
+import           Data.List.Ordered                 (nubSort)
+import qualified Data.Map.Strict                   as M
+import           Data.Maybe                        (fromJust, mapMaybe)
+import           Data.Ord                          (comparing)
+import qualified Data.Set                          as S
+import           Data.Singletons                   (SingI)
+import qualified Data.Text                         as T
+import qualified Data.Vector.Unboxed               as U
 import           IGraph
-import           IGraph.Structure        (pagerank, personalizedPagerank)
+import           IGraph.Structure                  (pagerank,
+                                                    personalizedPagerank)
 import           Scientific.Workflow
-import           System.IO.Temp          (withTempFile)
+import           System.IO.Temp                    (withTempFile)
 
-import           Taiji.Core.Config
+import           Taiji.Core.Config                 ()
 import           Taiji.Types
 
 type GeneName = CI B.ByteString
@@ -177,6 +184,21 @@ getTFRanks :: ( Maybe (M.Map GeneName (Double, Double))
 getTFRanks (expr, (grp, fl)) = do
     gr <- fmap buildNet $ decodeFile $ fl^.location
     return (grp, pageRank expr gr)
+
+outputRank :: [(T.Text, [(GeneName, Double)])]
+           -> WorkflowConfig TaijiConfig FilePath
+outputRank results = do
+    output <- asks _taiji_output_dir >>= getPath . asDir . (++"/GeneRanks.tsv")
+    liftIO $ B.writeFile output $ B.unlines $
+        header : zipWith toBS (map original genes) (transpose ranks)
+    return output
+  where
+    genes = nubSort $ concatMap (fst . unzip) $ snd $ unzip results
+    (groupNames, ranks) = unzip $ flip map results $ \(name, xs) ->
+        let geneRanks = M.fromList xs
+        in (name, flip map genes $ \g -> M.findWithDefault 0 g geneRanks)
+    header = B.pack $ T.unpack $ T.intercalate "\t" $ "Gene" : groupNames
+    toBS nm xs = B.intercalate "\t" $ nm : map toShortest xs
 
 pageRank :: Maybe (M.Map GeneName (Double, Double))   -- ^ Expression data
          -> LGraph D GeneName ()

@@ -1,14 +1,9 @@
-{-# LANGUAGE DeriveGeneric #-}
 module Taiji.Core.Config where
 
 import           Bio.Pipeline.Utils
-import           Data.Aeson
-import Data.Aeson.Types (fieldLabelModifier)
-import           Data.Default                  (Default (..))
-import           GHC.Generics                  (Generic)
 import           Taiji.Pipeline.ATACSeq.Config (ATACSeqConfig (..))
 import           Taiji.Pipeline.RNASeq.Config  (RNASeqConfig (..))
-import Taiji.Types (TaijiConfig(..))
+import           Taiji.Types                   (TaijiConfig (..))
 
 instance ATACSeqConfig TaijiConfig where
     _atacseq_output_dir = asDir . (++ "/ATACSeq") . _taiji_output_dir

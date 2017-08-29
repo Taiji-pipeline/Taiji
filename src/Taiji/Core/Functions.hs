@@ -64,8 +64,8 @@ instance Binary (CI B.ByteString) where
 type Linkage = (GeneName, [(GeneName, [BED])])
 
 getActivePromoter :: SingI tags
-                  => ATACSeq (File tags 'Bed)
-                  -> WorkflowConfig TaijiConfig (ATACSeq (File tags 'Bed))
+                  => ATACSeq S (File tags 'Bed)
+                  -> WorkflowConfig TaijiConfig (ATACSeq S (File tags 'Bed))
 getActivePromoter input = do
     anno <- fromJust <$> asks _taiji_annotation
     dir <- asks (asDir . _taiji_output_dir) >>= getPath
@@ -76,7 +76,7 @@ getActivePromoter input = do
             Bed.writeBed' output tss
             return $ location .~ output $ emptyFile
 
-    nameWith dir "_active_TSS.bed" fun input
+    mapFileWithDefName dir "_active_TSS.bed" fun input
 
 -- | Identify active genes by overlapping their promoters with activity indicators.
 getActiveTSS :: BEDLike b
@@ -106,8 +106,8 @@ getActiveTSS input peaks = do
     g xs = not $ B.isPrefixOf "#" (head xs) || (xs !! 2 /= "transcript")
 {-# INLINE getActiveTSS #-}
 
-linkGeneToTFs :: ATACSeq ( File tags2 'Bed          -- ^ Active promoters
-                         , File tags3 'Bed )        -- ^ TFBS
+linkGeneToTFs :: ATACSeq S ( File tags2 'Bed          -- ^ Active promoters
+                           , File tags3 'Bed )        -- ^ TFBS
               -> WorkflowConfig TaijiConfig (T.Text, File '[] 'Other)
 linkGeneToTFs atac = do
     dir <- asks (asDir . _taiji_output_dir) >>= getPath

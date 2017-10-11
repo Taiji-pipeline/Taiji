@@ -57,7 +57,11 @@ library
 executable taiji
   hs-source-dirs:      app
   main-is:             Main.hs
+
   ghc-options:         -threaded
+  
+  other-modules:       Paths_Taiji
+
   build-depends:       base
                      , lens
                      , SciFlow >= 0.6.1

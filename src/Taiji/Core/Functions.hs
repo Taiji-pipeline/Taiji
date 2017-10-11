@@ -40,6 +40,7 @@ import           Data.List                         (foldl1', groupBy, sortBy,
 import           Data.List.Ordered                 (nubSort)
 import qualified Data.Map.Strict                   as M
 import           Data.Maybe                        (fromJust, mapMaybe)
+import           Data.Monoid                       ((<>))
 import           Data.Ord                          (comparing)
 import qualified Data.Set                          as S
 import           Data.Singletons                   (SingI)
@@ -70,13 +71,16 @@ getActivePromoter input = do
     anno <- fromJust <$> asks _taiji_annotation
     dir <- asks (asDir . _taiji_output_dir) >>= getPath
     let fun output fl = liftIO $ withTempFile "./" "tmp_macs2_file." $ \tmp _ -> do
-            _ <- callPeaks tmp fl Nothing $ cutoff .= QValue 0.1
+            _ <- callPeaks tmp fl Nothing $ do
+                cutoff .= QValue 0.1
+                callSummits .= False
+                mode .= NoModel (-100) 200
             peaks <- Bed.readBed' tmp :: IO [BED3]
             tss <- getActiveTSS anno peaks
             Bed.writeBed' output tss
             return $ location .~ output $ emptyFile
 
-    mapFileWithDefName dir "_active_TSS.bed" fun input
+    mapFileWithDefName (dir ++ "/") "_active_TSS.bed" fun input
 
 -- | Identify active genes by overlapping their promoters with activity indicators.
 getActiveTSS :: BEDLike b
@@ -110,7 +114,7 @@ linkGeneToTFs :: ATACSeq S ( File tags2 'Bed          -- ^ Active promoters
                            , File tags3 'Bed )        -- ^ TFBS
               -> WorkflowConfig TaijiConfig (T.Text, File '[] 'Other)
 linkGeneToTFs atac = do
-    dir <- asks (asDir . _taiji_output_dir) >>= getPath
+    dir <- asks (asDir . _taiji_output_dir) >>= getPath . (<> asDir "/Network")
     liftIO $ do
         tfSites <- Bed.readBed' $ tfbs^.location
         activePro <- Bed.readBed' $ activeProFl^.location
@@ -122,6 +126,10 @@ linkGeneToTFs atac = do
             output = dir ++ "/" ++ T.unpack (fromJust $ atac^.groupName) ++
                 "_gene_TF_assign.bin"
         encodeFile output (result :: [Linkage])
+
+        printEdgeList (dir ++ "/" ++ T.unpack (fromJust $ atac^.groupName) ++ "_network.tsv")
+            result
+
         return (fromJust $ atac^.groupName, location .~ output $ emptyFile)
   where
     getTFName = mk . head . B.split '+' . fromJust . bedName
@@ -134,6 +142,11 @@ linkGeneToTFs atac = do
             else let [fl] = x^..replicates.folded.files
                  in Just $ read3DContact $ fl^.location
                  -}
+
+printEdgeList :: FilePath -> [Linkage] -> IO ()
+printEdgeList output links = B.writeFile output $ B.unlines $
+    flip map links $ \(a,b) -> B.intercalate "\t"
+    [original a, B.intercalate "," $ map original $ fst $ unzip b]
 
 findRegulators :: Monad m
                  => [BED]  -- ^ Genes

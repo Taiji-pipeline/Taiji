@@ -77,7 +77,7 @@ readData input1 input2 = do
         Just input -> do
             expr <- (fmap log' . readTSV) <$> B.readFile input
             return $ Just $ MU.generate (length rowlab, length collab) $
-                \(i, j) -> M.findWithDefault undefined (rowlab V.! i, collab V.! j) expr
+                \(i, j) -> M.findWithDefault 0 (rowlab V.! i, collab V.! j) expr
 
     return $ RankTable (V.map format rowlab) (V.map format collab)
         rank' expr

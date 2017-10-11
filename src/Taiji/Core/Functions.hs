@@ -32,6 +32,7 @@ import           Data.Binary                       (Binary (..), decodeFile,
                                                     encodeFile)
 import qualified Data.ByteString.Char8             as B
 import           Data.CaseInsensitive              (CI, mk, original)
+import           Data.Default                      (def)
 import           Data.Double.Conversion.ByteString (toShortest)
 import           Data.Function                     (on)
 import qualified Data.IntervalMap.Strict           as IM
@@ -71,10 +72,8 @@ getActivePromoter input = do
     anno <- fromJust <$> asks _taiji_annotation
     dir <- asks (asDir . _taiji_output_dir) >>= getPath
     let fun output fl = liftIO $ withTempFile "./" "tmp_macs2_file." $ \tmp _ -> do
-            _ <- callPeaks tmp fl Nothing $ do
-                cutoff .= QValue 0.1
-                callSummits .= False
-                mode .= NoModel (-100) 200
+            _ <- callPeaks tmp fl Nothing $ def & cutoff .~ QValue 0.1
+                                                & mode .~ NoModel (-100) 200
             peaks <- Bed.readBed' tmp :: IO [BED3]
             tss <- getActiveTSS anno peaks
             Bed.writeBed' output tss

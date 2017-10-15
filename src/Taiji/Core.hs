@@ -13,6 +13,7 @@ import           Taiji.Core.Exporter (exportResults)
 builder :: Builder ()
 builder = do
     nodePS 1 "Find_Active_Promoter" 'getActivePromoter $ return ()
+
     node' "Link_Gene_TF_Prep" [| \(activePro, tfbs) ->
         let getFile e = head $ e^..replicates.folded.files
             tfbs' = M.fromList $ map (\x -> (x^.groupName, getFile x)) tfbs

@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
@@ -40,7 +41,7 @@ import           Data.List                         (foldl1', groupBy, sortBy,
                                                     transpose)
 import           Data.List.Ordered                 (nubSort)
 import qualified Data.Map.Strict                   as M
-import           Data.Maybe                        (fromJust, mapMaybe)
+import           Data.Maybe                        (fromJust, mapMaybe, fromMaybe)
 import           Data.Monoid                       ((<>))
 import           Data.Ord                          (comparing)
 import qualified Data.Set                          as S
@@ -51,9 +52,9 @@ import           IGraph
 import           IGraph.Structure                  (pagerank,
                                                     personalizedPagerank)
 import           Scientific.Workflow
-import           System.IO.Temp                    (withTempFile)
 
 import           Taiji.Core.Config                 ()
+import           Taiji.Pipeline.ATACSeq.Config     (ATACSeqConfig (..))
 import           Taiji.Types
 
 type GeneName = CI B.ByteString
@@ -65,20 +66,30 @@ instance Binary (CI B.ByteString) where
 -- | Gene and its regulators
 type Linkage = (GeneName, [(GeneName, [BED])])
 
+{-
+-- | Call permissive peaks using loose cutoff, aiming for high sensitivity.
+callLenientPeak :: SingI tags
+                => ATACSeq S (File tags 'Bed)
+                -> WorkflowConfig TaijiConfig (ATACSeq S (File '[] 'NarrowPeak))
+callLenientPeak input = do
+    dir <- asks _atacseq_output_dir >>= getPath . (<> (asDir "/Peaks"))
+    let fn output fl = callPeaks output fl Nothing $
+            def & cutoff .~ PValue 0.01
+                & mode .~ NoModel (-100) 200
+    liftIO $ mapFileWithDefName (dir++"/") ".narrowPeak" fn input
+    -}
+
 getActivePromoter :: SingI tags
-                  => ATACSeq S (File tags 'Bed)
+                  => ATACSeq S (File tags 'NarrowPeak)
                   -> WorkflowConfig TaijiConfig (ATACSeq S (File tags 'Bed))
 getActivePromoter input = do
     anno <- fromJust <$> asks _taiji_annotation
     dir <- asks (asDir . _taiji_output_dir) >>= getPath
-    let fun output fl = liftIO $ withTempFile "./" "tmp_macs2_file." $ \tmp _ -> do
-            _ <- callPeaks tmp fl Nothing $ def & cutoff .~ QValue 0.1
-                                                & mode .~ NoModel (-100) 200
-            peaks <- Bed.readBed' tmp :: IO [BED3]
+    let fun output fl = liftIO $ do
+            peaks <- Bed.readBed' $ fl^.location :: IO [BED3]
             tss <- getActiveTSS anno peaks
             Bed.writeBed' output tss
             return $ location .~ output $ emptyFile
-
     mapFileWithDefName (dir ++ "/") "_active_TSS.bed" fun input
 
 -- | Identify active genes by overlapping their promoters with activity indicators.
@@ -119,9 +130,11 @@ linkGeneToTFs atac = do
         activePro <- Bed.readBed' $ activeProFl^.location
         regulators <- runResourceT $ findRegulators activePro Nothing tfSites
         let result = flip map regulators $ \(geneName, tfs) ->
-                ( mk geneName, map ((head *** id) . unzip) $
+                ( mk geneName
+                , map ((head *** id) . unzip) $
                     groupBy ((==) `on` fst) $ sortBy (comparing fst) $
-                    map (getTFName &&& id) tfs )
+                    map (getTFName &&& id) tfs
+                )
             output = dir ++ "/" ++ T.unpack (fromJust $ atac^.groupName) ++
                 "_gene_TF_assign.bin"
         encodeFile output (result :: [Linkage])
@@ -194,8 +207,8 @@ getTFRanks :: ( Maybe (M.Map GeneName (Double, Double))
               , (T.Text, File '[] 'Other) )
            -> IO (T.Text, [(GeneName, Double)])
 getTFRanks (expr, (grp, fl)) = do
-    gr <- fmap buildNet $ decodeFile $ fl^.location
-    return (grp, pageRank expr gr)
+    links <- decodeFile $ fl^.location
+    return (grp, pageRank $ buildNet links expr)
 
 outputRank :: [(T.Text, [(GeneName, Double)])]
            -> WorkflowConfig TaijiConfig FilePath
@@ -213,29 +226,36 @@ outputRank results = do
     header = B.pack $ T.unpack $ T.intercalate "\t" $ "Gene" : groupNames
     toBS nm xs = B.intercalate "\t" $ nm : map toShortest xs
 
-pageRank :: Maybe (M.Map GeneName (Double, Double))   -- ^ Expression data
-         -> LGraph D GeneName ()
+pageRank :: LGraph D (GeneName, Double) Double
          -> [(GeneName, Double)]
-pageRank expr gr = flip mapMaybe (zip [0..] ranks) $ \(i, rank) ->
+pageRank gr = flip mapMaybe (zip [0..] ranks) $ \(i, rank) ->
     if i `S.member` tfs
-        then Just (nodeLab gr i, rank)
+        then Just (fst $ nodeLab gr i, rank)
         else Nothing
   where
     labs = map (nodeLab gr) $ nodes gr
     tfs = S.fromList $ filter (not . null . pre gr) $ nodes gr
-    ranks = case expr of
-        Just expr' ->
-            let lookupExpr x = M.findWithDefault (0.01,-10) x expr'
-                nodeWeights = map (exp . snd . lookupExpr) labs
-                edgeWeights = map (sqrt . fst . lookupExpr . nodeLab gr . snd) $
-                    edges gr
+    ranks = let nodeWeights = map snd labs
+                edgeWeights = map (edgeLab gr) $ edges gr
             in personalizedPagerank gr nodeWeights (Just edgeWeights) 0.85
-        Nothing -> pagerank gr Nothing 0.85
 {-# INLINE pageRank #-}
 
-buildNet :: [Linkage] -> LGraph D GeneName ()
-buildNet links = fromLabeledEdges $ flip concatMap links $ \(a, b) ->
-    zip (zip (repeat a) $ fst $ unzip b) $ repeat ()
+buildNet :: [Linkage]
+         -> Maybe (M.Map GeneName (Double, Double))  -- ^ absolute value and z-score
+         -> LGraph D (GeneName, Double) Double
+buildNet links expr = fromLabeledEdges $ concatMap toEdge links
+  where
+    toEdge (gene, tfs) = zipWith fun (repeat (gene, getNodeWeight gene)) tfs
+      where
+        fun a (b, beds) =
+            let w1 = case expr of
+                    Nothing -> 1
+                    Just expr' -> sqrt $ fromMaybe 0.01 $ fmap fst $ M.lookup b expr'
+                w2 = maximum $ map (fromJust . bedScore) beds
+            in ((a, (b, getNodeWeight b)), w1 * w2)
+        getNodeWeight x = case expr of
+            Nothing -> 1
+            Just expr' -> exp $ fromMaybe (-10) $ fmap snd $ M.lookup x expr'
 {-# INLINE buildNet #-}
 
 -- | Read RNA expression data
@@ -256,3 +276,12 @@ readExpression fl cutoff = do
         | all (<cutoff) xs || all (==head xs) xs = replicate (length xs) (-10)
         | otherwise = U.toList $ scale $ U.fromList xs
 {-# INLINE readExpression #-}
+
+{-
+geneCorrelation :: FilePath -> IO
+geneCorrelation fl = do
+    c <- B.readFile fl
+    let (_:dat) = map (B.split '\t') $ B.lines c
+        rowNames = map (mk . head) dat
+        dataTable = map (map readDouble . tail) dat
+        -}

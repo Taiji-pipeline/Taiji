@@ -26,7 +26,7 @@ import           Data.Maybe
 import qualified Data.Text              as T
 import           Data.Text.Encoding     (decodeUtf8, encodeUtf8)
 import qualified Data.Vector            as V
-import           IGraph                 (getNodes, nodeLab, pre, suc)
+import           IGraph                 (getNodes, nodeLab, pre, suc, mapNodes)
 import           Scientific.Workflow
 
 import           Taiji.Core.Functions   (buildNet)
@@ -42,8 +42,9 @@ exportResults (pagerank, expr, es) = do
     liftIO $ do
         table <- readData pagerank $ fmap (^.location) expr
         nets <- forM es $ \(ct, e) -> do
-            gr <- fmap buildNet $ decodeFile $ e^.location
-            let results = M.fromList $ flip mapMaybe (V.toList $ rowNames table) $
+            links <- decodeFile $ e^.location
+            let gr = mapNodes (\_ x -> fst x) $ buildNet links Nothing
+                results = M.fromList $ flip mapMaybe (V.toList $ rowNames table) $
                     \x -> case getNodes gr (mk $ encodeUtf8 x) of
                         [] -> Nothing
                         (i:_) ->

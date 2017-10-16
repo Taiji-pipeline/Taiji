@@ -38,11 +38,13 @@ library
                      , data-default
                      , data-ordlist
                      , haskell-igraph
+                     , hashable
                      , IntervalMap
                      , lens
                      , matrices
                      , mtl
                      , singletons
+                     , statistics >= 0.14.0
                      , SciFlow >= 0.6.1
                      , temporary
                      , text
@@ -59,7 +61,7 @@ executable taiji
   main-is:             Main.hs
 
   ghc-options:         -threaded
-  
+
   other-modules:       Paths_Taiji
 
   build-depends:       base

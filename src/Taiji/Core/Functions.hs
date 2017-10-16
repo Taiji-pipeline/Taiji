@@ -6,9 +6,9 @@
 module Taiji.Core.Functions
     ( getActivePromoter
     , linkGeneToTFs
-    , getTFRanksPrep
     , getTFRanks
     , outputRank
+    , linkageToGraphWithDefLabel
     , buildNet
     ) where
 
@@ -36,12 +36,15 @@ import           Data.CaseInsensitive              (CI, mk, original)
 import           Data.Default                      (def)
 import           Data.Double.Conversion.ByteString (toShortest)
 import           Data.Function                     (on)
+import           Data.Hashable                     (Hashable)
 import qualified Data.IntervalMap.Strict           as IM
 import           Data.List                         (foldl1', groupBy, sortBy,
                                                     transpose)
 import           Data.List.Ordered                 (nubSort)
 import qualified Data.Map.Strict                   as M
-import           Data.Maybe                        (fromJust, mapMaybe, fromMaybe)
+import qualified Data.Matrix.Unboxed               as MU
+import           Data.Maybe                        (fromJust, fromMaybe,
+                                                    mapMaybe)
 import           Data.Monoid                       ((<>))
 import           Data.Ord                          (comparing)
 import qualified Data.Set                          as S
@@ -52,6 +55,7 @@ import           IGraph
 import           IGraph.Structure                  (pagerank,
                                                     personalizedPagerank)
 import           Scientific.Workflow
+import           Statistics.Correlation.Kendall    (kendall)
 
 import           Taiji.Core.Config                 ()
 import           Taiji.Pipeline.ATACSeq.Config     (ATACSeqConfig (..))
@@ -193,22 +197,15 @@ findRegulators activePro contacts tfbs = do
         getRegulatoryDomains (BasalPlusExtension 5000 1000 1000000) tss
 {-# INLINE findRegulators #-}
 
-getTFRanksPrep :: (Maybe (File '[] 'Tsv), [(T.Text, File '[] 'Other)])
-               -> IO [( Maybe (M.Map GeneName (Double, Double))
-                      , (T.Text, File '[] 'Other) )]
-getTFRanksPrep (geneExpr, links) = case geneExpr of
-    Nothing -> return $ map (\x -> (Nothing, x)) links
-    Just e -> do
-        rnaseqData <- readExpression (e^.location) 1
-        return $ flip map links $ \(grp, x) ->
-            (lookup (B.pack $ T.unpack grp) rnaseqData, (grp, x))
-
-getTFRanks :: ( Maybe (M.Map GeneName (Double, Double))
+getTFRanks :: ( Maybe (File '[] 'Tsv)
               , (T.Text, File '[] 'Other) )
            -> IO (T.Text, [(GeneName, Double)])
 getTFRanks (expr, (grp, fl)) = do
+    rnaseqData <- case expr of
+        Nothing -> return Nothing
+        Just e  -> Just <$> readExpression (e^.location) 1
     links <- decodeFile $ fl^.location
-    return (grp, pageRank $ buildNet links expr)
+    return (grp, pageRank $ buildNet (B.pack $ T.unpack grp) links rnaseqData)
 
 outputRank :: [(T.Text, [(GeneName, Double)])]
            -> WorkflowConfig TaijiConfig FilePath
@@ -240,48 +237,68 @@ pageRank gr = flip mapMaybe (zip [0..] ranks) $ \(i, rank) ->
             in personalizedPagerank gr nodeWeights (Just edgeWeights) 0.85
 {-# INLINE pageRank #-}
 
-buildNet :: [Linkage]
-         -> Maybe (M.Map GeneName (Double, Double))  -- ^ absolute value and z-score
-         -> LGraph D (GeneName, Double) Double
-buildNet links expr = fromLabeledEdges $ concatMap toEdge links
+linkageToGraphWithDefLabel ::(Hashable v, Read v, Eq v, Show v, Show e)
+                           => v -> e -> [Linkage] -> LGraph D (GeneName, v) e
+linkageToGraphWithDefLabel v e links = fromLabeledEdges $ concatMap toEdge links
   where
-    toEdge (gene, tfs) = zipWith fun (repeat (gene, getNodeWeight gene)) tfs
+    toEdge (gene, tfs) = zipWith ( \a b -> (((a,v), (fst b,v)), e) ) (repeat gene) tfs
+{-# INLINE linkageToGraphWithDefLabel #-}
+
+buildNet :: B.ByteString  -- ^ cell type
+         -> [Linkage]
+         -> Maybe ( M.Map GeneName Int
+                  , M.Map B.ByteString Int
+                  , MU.Matrix (Double, Double)
+                  )
+         -> LGraph D (GeneName, Double) Double
+buildNet _ links Nothing = linkageToGraphWithDefLabel 1 1 links
+buildNet celltype links (Just (rows, cols, table)) = fromLabeledEdges $
+    concatMap toEdge links
+  where
+    toEdge (gene, tfs) = map fun tfs
       where
-        fun a (b, beds) =
-            let w1 = case expr of
-                    Nothing -> 1
-                    Just expr' -> sqrt $ fromMaybe 0.01 $ fmap fst $ M.lookup b expr'
-                w2 = maximum $ map (fromJust . bedScore) beds
-            in ((a, (b, getNodeWeight b)), w1 * w2)
-        getNodeWeight x = case expr of
-            Nothing -> 1
-            Just expr' -> exp $ fromMaybe (-10) $ fmap snd $ M.lookup x expr'
+        idx_cell = M.findWithDefault undefined celltype cols
+        expr = table `MU.takeColumn` idx_cell
+        idx_gene = M.lookup gene rows
+        expr_gene = fmap (table `MU.takeRow`) idx_gene
+        fun (tf, beds) =
+            let idx_tf = M.lookup tf rows
+                weight1 = case idx_tf of
+                    Nothing -> sqrt 0.01
+                    Just j  -> sqrt $ fst $ expr U.! j
+                weight2 = maximum $ map (fromJust . bedScore) beds
+                weight3 = case expr_gene of
+                    Nothing -> 0.4
+                    Just v1 -> case fmap (table `MU.takeRow`) idx_tf of
+                        Nothing -> 0.4
+                        Just v2 -> abs $ kendall $ U.zip v1 v2
+                node_weight_gene = getNodeWeight idx_gene
+                node_weight_tf = getNodeWeight idx_tf
+            in ( ((gene, node_weight_gene), (tf, node_weight_tf))
+               , weight1 * weight2 * weight3 )
+        getNodeWeight x = case x of
+            Nothing -> exp (-10)
+            Just i  -> exp $ snd $ expr U.! i
 {-# INLINE buildNet #-}
 
 -- | Read RNA expression data
 readExpression :: FilePath
                -> Double    -- ^ Threshold to call a gene as non-expressed
-               -> IO [( B.ByteString    -- ^ cell type
-                     , M.Map GeneName (Double, Double)  -- ^ absolute value and z-score
-                     )]
+               -> IO ( M.Map GeneName Int  -- ^ row
+                     , M.Map B.ByteString Int  -- ^ column
+                     , MU.Matrix (Double, Double)  -- ^ absolute value and z-score
+                     )
 readExpression fl cutoff = do
     c <- B.readFile fl
     let ((_:header):dat) = map (B.split '\t') $ B.lines c
         rowNames = map (mk . head) dat
-        dataTable = map (map readDouble . tail) dat
-    return $ zipWith (\a b -> (a, M.fromList $ zip rowNames b)) header $
-        transpose $ zipWith zip dataTable $ map computeZscore dataTable
+        dataTable = map (U.fromList . map readDouble . tail) dat
+    return ( M.fromList $ zip rowNames [0..]
+           , M.fromList $ zip header [0..]
+           , MU.fromRows $ zipWith U.zip dataTable $ map computeZscore dataTable
+           )
   where
     computeZscore xs
-        | all (<cutoff) xs || all (==head xs) xs = replicate (length xs) (-10)
-        | otherwise = U.toList $ scale $ U.fromList xs
+        | U.all (<cutoff) xs || U.all (== U.head xs) xs = U.replicate (U.length xs) (-10)
+        | otherwise = scale xs
 {-# INLINE readExpression #-}
-
-{-
-geneCorrelation :: FilePath -> IO
-geneCorrelation fl = do
-    c <- B.readFile fl
-    let (_:dat) = map (B.split '\t') $ B.lines c
-        rowNames = map (mk . head) dat
-        dataTable = map (map readDouble . tail) dat
-        -}

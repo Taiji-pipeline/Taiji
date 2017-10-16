@@ -29,7 +29,7 @@ import qualified Data.Vector            as V
 import           IGraph                 (getNodes, nodeLab, pre, suc, mapNodes)
 import           Scientific.Workflow
 
-import           Taiji.Core.Functions   (buildNet)
+import           Taiji.Core.Functions   (linkageToGraphWithDefLabel)
 import           Taiji.Types
 
 exportResults :: ( FilePath    -- ^ File storing the PageRank results
@@ -43,7 +43,7 @@ exportResults (pagerank, expr, es) = do
         table <- readData pagerank $ fmap (^.location) expr
         nets <- forM es $ \(ct, e) -> do
             links <- decodeFile $ e^.location
-            let gr = mapNodes (\_ x -> fst x) $ buildNet links Nothing
+            let gr = mapNodes (\_ x -> fst x) $ linkageToGraphWithDefLabel () () links
                 results = M.fromList $ flip mapMaybe (V.toList $ rowNames table) $
                     \x -> case getNodes gr (mk $ encodeUtf8 x) of
                         [] -> Nothing

@@ -21,11 +21,11 @@ packages:
 
 - location:
     git: https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
-    commit: 5f073cb124749687011442250178377cbb57eaa9
+    commit: de36468d7fe69d88bf546cd88c2a2b24e1728723
 
 - location:
     git: https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-    commit: f1828f7f63fb81a2fdd91ef5f4a71417cba4a3d7
+    commit: 1e32552469632209a2d652b3b1127c281efc943a
 
 extra-deps:
 - bioinformatics-toolkit-0.3.2

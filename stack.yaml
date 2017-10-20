@@ -21,7 +21,7 @@ packages:
 
 - location:
     git: https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
-    commit: 774a71088765debf27b51351d259437f8bb314b1
+    commit: e0403b85485a4bbd292965a50e5726b8a9952c33
 
 - location:
     git: https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git

@@ -13,7 +13,7 @@ packages:
 
 - location:
     git: https://github.com/Taiji-pipeline/bio-pipelines.git
-    commit: db08736dc7be1f97ce1f0eefe28a92320b393c91
+    commit: 6af63147064c8bb7721e719fa6accc4aecea67bd
 
 - location:
     git: https://github.com/Taiji-pipeline/bio-experiments.git

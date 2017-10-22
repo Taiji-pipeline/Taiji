@@ -23,6 +23,6 @@ instance RNASeqConfig TaijiConfig where
     _rnaseq_genome_fasta = _taiji_genome
     _rnaseq_star_index = _taiji_star_index
     _rnaseq_annotation = _taiji_annotation
-    _rnaseq_rsem_index = _taiji_rsem_index
+    _rnaseq_rsem_index = fmap (++ "/genome") . _taiji_rsem_index
     _rnaseq_input = _taiji_input
     _rnaseq_output_dir = asDir . (++ "/RNASeq") . _taiji_output_dir

@@ -271,7 +271,8 @@ buildNet celltype links (Just (rows, cols, table)) = fromLabeledEdges $
                     Nothing -> 0.4
                     Just v1 -> case fmap (table `MU.takeRow`) idx_tf of
                         Nothing -> 0.4
-                        Just v2 -> abs $ kendall $ U.zip v1 v2
+                        Just v2 -> let cor = abs $ kendall $ U.zip v1 v2
+                                   in if isNaN cor then 0 else cor
                 node_weight_gene = getNodeWeight idx_gene
                 node_weight_tf = getNodeWeight idx_tf
             in ( ((gene, node_weight_gene), (tf, node_weight_tf))

@@ -143,9 +143,6 @@ linkGeneToTFs atac = do
                 "_gene_TF_assign.bin"
         encodeFile output (result :: [Linkage])
 
-        printEdgeList (dir ++ "/" ++ T.unpack (fromJust $ atac^.groupName) ++ "_network.tsv")
-            result
-
         return (fromJust $ atac^.groupName, location .~ output $ emptyFile)
   where
     getTFName = mk . head . B.split '+' . fromJust . bedName
@@ -199,13 +196,28 @@ findRegulators activePro contacts tfbs = do
 
 getTFRanks :: ( Maybe (File '[] 'Tsv)
               , (T.Text, File '[] 'Other) )
-           -> IO (T.Text, [(GeneName, Double)])
+           -> WorkflowConfig TaijiConfig (T.Text, [(GeneName, Double)])
 getTFRanks (expr, (grp, fl)) = do
-    rnaseqData <- case expr of
-        Nothing -> return Nothing
-        Just e  -> Just <$> readExpression (e^.location) 1
-    links <- decodeFile $ fl^.location
-    return (grp, pageRank $ buildNet (B.pack $ T.unpack grp) links rnaseqData)
+    dir <- asks (asDir . _taiji_output_dir) >>= getPath . (<> asDir "/Network")
+    liftIO $ do
+        rnaseqData <- case expr of
+            Nothing -> return Nothing
+            Just e  -> Just <$> readExpression (e^.location) 1
+        links <- decodeFile $ fl^.location
+        let gr = buildNet (B.pack $ T.unpack grp) links rnaseqData
+            output = dir ++ "/" ++ T.unpack grp ++ "_network.tsv"
+            header = "TF\tTarget\tweight_expression\tweight_peak\tweight_correlation"
+        B.writeFile output $ B.unlines $ header : showEdges gr
+        return (grp, pageRank gr)
+  where
+    showEdges gr = map (B.intercalate "\t" . f) $ edges gr
+      where
+        f (fr, to) = let (w1, w2, w3) = edgeLab gr (fr, to)
+                     in [ original $ fst $ nodeLab gr fr
+                        , original $ fst $ nodeLab gr to
+                        , toShortest $ transform_exp w1
+                        , toShortest $ transform_peak_height w2
+                        , toShortest $ transform_corr w3 ]
 
 outputRank :: [(T.Text, [(GeneName, Double)])]
            -> WorkflowConfig TaijiConfig FilePath
@@ -223,7 +235,7 @@ outputRank results = do
     header = B.pack $ T.unpack $ T.intercalate "\t" $ "Gene" : groupNames
     toBS nm xs = B.intercalate "\t" $ nm : map toShortest xs
 
-pageRank :: LGraph D (GeneName, Double) Double
+pageRank :: LGraph D (GeneName, Double) (Double, Double, Double)
          -> [(GeneName, Double)]
 pageRank gr = flip mapMaybe (zip [0..] ranks) $ \(i, rank) ->
     if i `S.member` tfs
@@ -233,9 +245,22 @@ pageRank gr = flip mapMaybe (zip [0..] ranks) $ \(i, rank) ->
     labs = map (nodeLab gr) $ nodes gr
     tfs = S.fromList $ filter (not . null . pre gr) $ nodes gr
     ranks = let nodeWeights = map snd labs
-                edgeWeights = map (edgeLab gr) $ edges gr
+                edgeWeights = map (combine . edgeLab gr) $ edges gr
             in personalizedPagerank gr nodeWeights (Just edgeWeights) 0.85
+    combine (x, y, z) = transform_exp x * transform_peak_height y * transform_corr z
 {-# INLINE pageRank #-}
+
+transform_exp :: Double -> Double
+transform_exp = sqrt
+{-# INLINE transform_exp #-}
+
+transform_peak_height :: Double -> Double
+transform_peak_height x = 1 / (1 + exp (-(x - 5)))
+{-# INLINE transform_peak_height #-}
+
+transform_corr :: Double -> Double
+transform_corr = abs
+{-# INLINE transform_corr #-}
 
 linkageToGraphWithDefLabel ::(Hashable v, Read v, Eq v, Show v, Show e)
                            => v -> e -> [Linkage] -> LGraph D (GeneName, v) e
@@ -250,8 +275,8 @@ buildNet :: B.ByteString  -- ^ cell type
                   , M.Map B.ByteString Int
                   , MU.Matrix (Double, Double)
                   )
-         -> LGraph D (GeneName, Double) Double
-buildNet _ links Nothing = linkageToGraphWithDefLabel 1 1 links
+         -> LGraph D (GeneName, Double) (Double, Double, Double)
+buildNet _ links Nothing = linkageToGraphWithDefLabel 1 (1, 1, 1) links
 buildNet celltype links (Just (rows, cols, table)) = fromLabeledEdges $
     concatMap toEdge links
   where
@@ -264,19 +289,19 @@ buildNet celltype links (Just (rows, cols, table)) = fromLabeledEdges $
         fun (tf, beds) =
             let idx_tf = M.lookup tf rows
                 weight1 = case idx_tf of
-                    Nothing -> sqrt 0.01
-                    Just j  -> sqrt $ fst $ expr U.! j
+                    Nothing -> 0.01
+                    Just j  -> fst $ expr U.! j
                 weight2 = maximum $ map (fromJust . bedScore) beds
                 weight3 = case expr_gene of
                     Nothing -> 0.4
                     Just v1 -> case fmap (table `MU.takeRow`) idx_tf of
                         Nothing -> 0.4
-                        Just v2 -> let cor = abs $ kendall $ U.zip v1 v2
+                        Just v2 -> let cor = kendall $ U.zip v1 v2
                                    in if isNaN cor then 0 else cor
                 node_weight_gene = getNodeWeight idx_gene
                 node_weight_tf = getNodeWeight idx_tf
             in ( ((gene, node_weight_gene), (tf, node_weight_tf))
-               , weight1 * weight2 * weight3 )
+               , (weight1, weight2, weight3) )
         getNodeWeight x = case x of
             Nothing -> exp (-10)
             Just i  -> exp $ snd $ expr U.! i

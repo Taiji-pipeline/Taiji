@@ -25,7 +25,7 @@ builder = do
     path ["Link_Gene_TF_Prep", "Link_Gene_TF"]
 
     node' "TFRank_Prep" [| \(a,b) -> zip (repeat a) b |] $ return ()
-    nodeP 1 "TFRank" 'getTFRanks $ return ()
+    nodePS 1 "TFRank" 'getTFRanks $ return ()
     nodeS "Output_Rank" 'outputRank $ return ()
     path ["TFRank_Prep", "TFRank", "Output_Rank"]
 

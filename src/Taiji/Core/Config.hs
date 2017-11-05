@@ -18,6 +18,7 @@ instance ATACSeqConfig TaijiConfig where
     _atacseq_motif_file = _taiji_motif_file
     _atacseq_callpeak_opts _ = def & mode .~ NoModel (-100) 200
                                    & cutoff .~ PValue 0.01
+                                   & callSummits .~ True
 
 instance RNASeqConfig TaijiConfig where
     _rnaseq_genome_fasta = _taiji_genome

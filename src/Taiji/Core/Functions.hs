@@ -9,7 +9,6 @@ module Taiji.Core.Functions
     , getTFRanks
     , outputRank
     , linkageToGraphWithDefLabel
-    , buildNet
     ) where
 
 import           Bio.Data.Bed                      (BED (..), BED3 (..),
@@ -204,7 +203,7 @@ getTFRanks (expr, (grp, fl)) = do
             Nothing -> return Nothing
             Just e  -> Just <$> readExpression (e^.location) 1
         links <- decodeFile $ fl^.location
-        let gr = buildNet (B.pack $ T.unpack grp) links rnaseqData
+        let gr = buildNet False (B.pack $ T.unpack grp) links rnaseqData
             output = dir ++ "/" ++ T.unpack grp ++ "_network.tsv"
             header = "TF\tTarget\tweight_expression\tweight_peak\tweight_correlation"
         B.writeFile output $ B.unlines $ header : showEdges gr
@@ -213,8 +212,8 @@ getTFRanks (expr, (grp, fl)) = do
     showEdges gr = map (B.intercalate "\t" . f) $ edges gr
       where
         f (fr, to) = let (w1, w2, w3) = edgeLab gr (fr, to)
-                     in [ original $ fst $ nodeLab gr fr
-                        , original $ fst $ nodeLab gr to
+                     in [ original $ fst $ nodeLab gr to
+                        , original $ fst $ nodeLab gr fr
                         , toShortest $ transform_exp w1
                         , toShortest $ transform_peak_height w2
                         , toShortest $ transform_corr w3 ]
@@ -269,15 +268,16 @@ linkageToGraphWithDefLabel v e links = fromLabeledEdges $ concatMap toEdge links
     toEdge (gene, tfs) = zipWith ( \a b -> (((a,v), (fst b,v)), e) ) (repeat gene) tfs
 {-# INLINE linkageToGraphWithDefLabel #-}
 
-buildNet :: B.ByteString  -- ^ cell type
+buildNet :: Bool  -- ^ whether to calculate correlation
+         -> B.ByteString  -- ^ cell type
          -> [Linkage]
          -> Maybe ( M.Map GeneName Int
                   , M.Map B.ByteString Int
                   , MU.Matrix (Double, Double)
                   )
          -> LGraph D (GeneName, Double) (Double, Double, Double)
-buildNet _ links Nothing = linkageToGraphWithDefLabel 1 (1, 1, 1) links
-buildNet celltype links (Just (rows, cols, table)) = fromLabeledEdges $
+buildNet _ _ links Nothing = linkageToGraphWithDefLabel 1 (1, 1, 1) links
+buildNet useCor celltype links (Just (rows, cols, table)) = fromLabeledEdges $
     concatMap toEdge links
   where
     toEdge (gene, tfs) = map fun tfs
@@ -292,12 +292,14 @@ buildNet celltype links (Just (rows, cols, table)) = fromLabeledEdges $
                     Nothing -> 0.01
                     Just j  -> fst $ expr U.! j
                 weight2 = maximum $ map (fromJust . bedScore) beds
-                weight3 = case expr_gene of
-                    Nothing -> 0.4
-                    Just v1 -> case fmap (table `MU.takeRow`) idx_tf of
-                        Nothing -> 0.4
-                        Just v2 -> let cor = kendall $ U.zip v1 v2
-                                   in if isNaN cor then 0 else cor
+                weight3 = if useCor
+                    then case expr_gene of
+                            Nothing -> 0.4
+                            Just v1 -> case fmap (table `MU.takeRow`) idx_tf of
+                                Nothing -> 0.4
+                                Just v2 -> let cor = kendall $ U.zip v1 v2
+                                           in if isNaN cor then 0 else cor
+                    else 1
                 node_weight_gene = getNodeWeight idx_gene
                 node_weight_tf = getNodeWeight idx_tf
             in ( ((gene, node_weight_gene), (tf, node_weight_tf))

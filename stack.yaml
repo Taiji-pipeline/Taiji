@@ -25,7 +25,7 @@ packages:
 
 - location:
     git: https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-    commit: 02e8c312533d27b2ca1d18026c9137cf9d9226b9
+    commit: f544336240641c3a0ae23c45b897f4a0bb976b11
 
 extra-deps:
 - bioinformatics-toolkit-0.3.2

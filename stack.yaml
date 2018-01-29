@@ -18,10 +18,10 @@ extra-deps:
   commit:  8c092b0fbc69ccdd387c0272a1fcb91aceaafc25
 
 - git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
-  commit:  6f8f55bced89206fb8d8cb7efc09e5ba7cdb226a
+  commit:  ca206d5d59398d22be695128d30532aa92cdb330
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  f544336240641c3a0ae23c45b897f4a0bb976b11
+  commit:  1b073529a9c98afdebc1d0f35b24b8690b2d4c88
 
 - bioinformatics-toolkit-0.3.2
 - HsHTSLib-1.3.2.2

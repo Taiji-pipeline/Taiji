@@ -289,7 +289,7 @@ buildNet useCor celltype links (Just (rows, cols, table)) = fromLabeledEdges $
         fun (tf, beds) =
             let idx_tf = M.lookup tf rows
                 weight1 = case idx_tf of
-                    Nothing -> 0.01
+                    Nothing -> 0.1
                     Just j  -> fst $ expr U.! j
                 weight2 = maximum $ map (fromJust . bedScore) beds
                 weight3 = if useCor
@@ -320,12 +320,13 @@ readExpression fl cutoff = do
     c <- B.readFile fl
     let ((_:header):dat) = map (B.split '\t') $ B.lines c
         rowNames = map (mk . head) dat
-        dataTable = map (U.fromList . map readDouble . tail) dat
+        dataTable = map (U.fromList . map ((+pseudoCount) . readDouble) . tail) dat
     return ( M.fromList $ zip rowNames [0..]
            , M.fromList $ zip header [0..]
            , MU.fromRows $ zipWith U.zip dataTable $ map computeZscore dataTable
            )
   where
+    pseudoCount = 0.1
     computeZscore xs
         | U.all (<cutoff) xs || U.all (== U.head xs) xs = U.replicate (U.length xs) (-10)
         | otherwise = scale xs

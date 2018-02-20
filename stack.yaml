@@ -21,7 +21,7 @@ extra-deps:
   commit:  a303a6a96f1db448579924b991d795fb4b9909e1
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  b440bcde46430b6b915bc7d26bf73304b917bb5e
+  commit:  e2734316312c10a1557c86f0c1dc3a6f06425895
 
 - bioinformatics-toolkit-0.3.2
 - HsHTSLib-1.3.2.2

@@ -302,9 +302,14 @@ buildNet useCor celltype links (Just (rows, cols, table)) = fromLabeledEdges $
                 node_weight_tf = getNodeWeight idx_tf
             in ( ((gene, node_weight_gene), (tf, node_weight_tf))
                , (weight1, weight2, weight3) )
+        {-
         getNodeWeight x = case x of
             Nothing -> exp (-10)
             Just i  -> exp $ snd $ expr U.! i
+        -}
+        getNodeWeight x = case x of
+            Nothing -> 0.1 
+            Just i  -> sqrt $ fst $ expr U.! i
 {-# INLINE buildNet #-}
 
 -- | Read RNA expression data

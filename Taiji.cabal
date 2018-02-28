@@ -7,7 +7,7 @@ license:             BSD3
 license-file:        LICENSE
 author:              Kai Zhang
 maintainer:          kai@kzhang.org
-copyright:           (c) 2017 Kai Zhang
+copyright:           (c) 2017-2018 Kai Zhang
 category:            Bio
 build-type:          Simple
 extra-source-files:  README.md
@@ -21,6 +21,8 @@ library
                        Taiji.Core.Config
                        Taiji.Core.Functions
                        Taiji.Core.Exporter
+                       Taiji.Extra
+                       Taiji.Extra.Functions
 
   build-depends:       base >= 4.7 && < 5
                      , aeson
@@ -30,6 +32,7 @@ library
                      , bioinformatics-toolkit
                      , binary
                      , containers
+                     , clustering
                      , double-conversion
                      , deepseq
                      , unordered-containers
@@ -61,6 +64,7 @@ executable taiji
   main-is:             Main.hs
 
   ghc-options:         -threaded
+  -- ghc-options:         -threaded -Wall -optl-static -optc-static -optl-pthread
 
   other-modules:       Paths_Taiji
 

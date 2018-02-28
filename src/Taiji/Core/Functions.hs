@@ -9,6 +9,9 @@ module Taiji.Core.Functions
     , getTFRanks
     , outputRank
     , linkageToGraphWithDefLabel
+    , transform_peak_height
+    , buildNet
+    , readExpression
     ) where
 
 import           Bio.Data.Bed                      (BED (..), BED3 (..),
@@ -18,7 +21,6 @@ import           Bio.Data.Experiment
 import           Bio.GO.GREAT                      (AssocRule (..),
                                                     get3DRegulatoryDomains,
                                                     getRegulatoryDomains)
-import           Bio.Pipeline.CallPeaks
 import           Bio.Pipeline.Instances            ()
 import           Bio.Pipeline.NGS
 import           Bio.Pipeline.Utils                (asDir, getPath)
@@ -32,7 +34,6 @@ import           Data.Binary                       (Binary (..), decodeFile,
                                                     encodeFile)
 import qualified Data.ByteString.Char8             as B
 import           Data.CaseInsensitive              (CI, mk, original)
-import           Data.Default                      (def)
 import           Data.Double.Conversion.ByteString (toShortest)
 import           Data.Function                     (on)
 import           Data.Hashable                     (Hashable)
@@ -42,8 +43,7 @@ import           Data.List                         (foldl1', groupBy, sortBy,
 import           Data.List.Ordered                 (nubSort)
 import qualified Data.Map.Strict                   as M
 import qualified Data.Matrix.Unboxed               as MU
-import           Data.Maybe                        (fromJust, fromMaybe,
-                                                    mapMaybe)
+import           Data.Maybe                        (fromJust, mapMaybe)
 import           Data.Monoid                       ((<>))
 import           Data.Ord                          (comparing)
 import qualified Data.Set                          as S
@@ -51,13 +51,11 @@ import           Data.Singletons                   (SingI)
 import qualified Data.Text                         as T
 import qualified Data.Vector.Unboxed               as U
 import           IGraph
-import           IGraph.Structure                  (pagerank,
-                                                    personalizedPagerank)
+import           IGraph.Structure                  (personalizedPagerank)
 import           Scientific.Workflow
 import           Statistics.Correlation.Kendall    (kendall)
 
 import           Taiji.Core.Config                 ()
-import           Taiji.Pipeline.ATACSeq.Config     (ATACSeqConfig (..))
 import           Taiji.Types
 
 type GeneName = CI B.ByteString

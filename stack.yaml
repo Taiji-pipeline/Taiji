@@ -15,7 +15,7 @@ extra-deps:
   commit:  6af63147064c8bb7721e719fa6accc4aecea67bd
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
-  commit:  8c092b0fbc69ccdd387c0272a1fcb91aceaafc25
+  commit:  12d25db4045eccb84b2a8b790db7eec4982e4365
 
 - git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
   commit:  a303a6a96f1db448579924b991d795fb4b9909e1

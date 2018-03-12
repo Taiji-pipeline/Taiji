@@ -12,6 +12,7 @@ module Taiji.Core.Functions
     , transform_peak_height
     , buildNet
     , readExpression
+    , getHiCLoops
     ) where
 
 import           Bio.Data.Bed                      (BED (..), BED3 (..),
@@ -20,7 +21,8 @@ import qualified Bio.Data.Bed                      as Bed
 import           Bio.Data.Experiment
 import           Bio.GO.GREAT                      (AssocRule (..),
                                                     get3DRegulatoryDomains,
-                                                    getRegulatoryDomains)
+                                                    getRegulatoryDomains,
+                                                    read3DContact)
 import           Bio.Pipeline.Instances            ()
 import           Bio.Pipeline.NGS
 import           Bio.Pipeline.Utils                (asDir, getPath)
@@ -35,6 +37,7 @@ import           Data.Binary                       (Binary (..), decodeFile,
 import qualified Data.ByteString.Char8             as B
 import           Data.CaseInsensitive              (CI, mk, original)
 import           Data.Double.Conversion.ByteString (toShortest)
+import           Data.Either                       (lefts)
 import           Data.Function                     (on)
 import           Data.Hashable                     (Hashable)
 import qualified Data.IntervalMap.Strict           as IM
@@ -67,18 +70,14 @@ instance Binary (CI B.ByteString) where
 -- | Gene and its regulators
 type Linkage = (GeneName, [(GeneName, [BED])])
 
-{-
--- | Call permissive peaks using loose cutoff, aiming for high sensitivity.
-callLenientPeak :: SingI tags
-                => ATACSeq S (File tags 'Bed)
-                -> WorkflowConfig TaijiConfig (ATACSeq S (File '[] 'NarrowPeak))
-callLenientPeak input = do
-    dir <- asks _atacseq_output_dir >>= getPath . (<> (asDir "/Peaks"))
-    let fn output fl = callPeaks output fl Nothing $
-            def & cutoff .~ PValue 0.01
-                & mode .~ NoModel (-100) 200
-    liftIO $ mapFileWithDefName (dir++"/") ".narrowPeak" fn input
-    -}
+type HiCWithSomeFile = HiC N [Either SomeFile (SomeFile, SomeFile)]
+
+getHiCLoops :: [HiCWithSomeFile] -> [HiC S (File '[ChromosomeLoop] 'Bed)]
+getHiCLoops inputs = concatMap split $ concatMap split $
+    inputs & mapped.replicates.mapped.files %~ f
+  where
+    f fls = map fromSomeFile $
+        filter (\x -> ChromosomeLoop `elem` getFileTags x) $ lefts fls
 
 getActivePromoter :: SingI tags
                   => ATACSeq S (File tags 'NarrowPeak)
@@ -121,15 +120,16 @@ getActiveTSS input peaks = do
     g xs = not $ B.isPrefixOf "#" (head xs) || (xs !! 2 /= "transcript")
 {-# INLINE getActiveTSS #-}
 
-linkGeneToTFs :: ATACSeq S ( File tags2 'Bed          -- ^ Active promoters
-                           , File tags3 'Bed )        -- ^ TFBS
+linkGeneToTFs :: ATACSeq S ( File tag1 'Bed          -- ^ Active promoters
+                           , File tag2 'Bed )        -- ^ TFBS
+              -> Maybe (HiC S (File '[ChromosomeLoop] 'Bed))
               -> WorkflowConfig TaijiConfig (T.Text, File '[] 'Other)
-linkGeneToTFs atac = do
+linkGeneToTFs atac hic = do
     dir <- asks (asDir . _taiji_output_dir) >>= getPath . (<> asDir "/Network")
     liftIO $ do
         tfSites <- Bed.readBed' $ tfbs^.location
         activePro <- Bed.readBed' $ activeProFl^.location
-        regulators <- runResourceT $ findRegulators activePro Nothing tfSites
+        regulators <- runResourceT $ findRegulators activePro loops tfSites
         let result = flip map regulators $ \(geneName, tfs) ->
                 ( mk geneName
                 , map ((head *** id) . unzip) $
@@ -144,19 +144,12 @@ linkGeneToTFs atac = do
   where
     getTFName = mk . head . B.split '+' . fromJust . bedName
     [(activeProFl, tfbs)] = atac^..replicates.folded.files
-    {-
     loops = case hic of
         Nothing -> Nothing
         Just x -> if x^.groupName /= atac^.groupName
             then error "Expect the group names to be the same."
             else let [fl] = x^..replicates.folded.files
                  in Just $ read3DContact $ fl^.location
-                 -}
-
-printEdgeList :: FilePath -> [Linkage] -> IO ()
-printEdgeList output links = B.writeFile output $ B.unlines $
-    flip map links $ \(a,b) -> B.intercalate "\t"
-    [original a, B.intercalate "," $ map original $ fst $ unzip b]
 
 findRegulators :: Monad m
                  => [BED]  -- ^ Genes
@@ -302,14 +295,9 @@ buildNet useCor celltype links (Just (rows, cols, table)) = fromLabeledEdges $
                 node_weight_tf = getNodeWeight idx_tf
             in ( ((gene, node_weight_gene), (tf, node_weight_tf))
                , (weight1, weight2, weight3) )
-        {-
         getNodeWeight x = case x of
             Nothing -> exp (-10)
             Just i  -> exp $ snd $ expr U.! i
-        -}
-        getNodeWeight x = case x of
-            Nothing -> 0.1 
-            Just i  -> sqrt $ fst $ expr U.! i
 {-# INLINE buildNet #-}
 
 -- | Read RNA expression data

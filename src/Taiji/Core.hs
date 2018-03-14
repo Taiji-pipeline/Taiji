@@ -11,7 +11,6 @@ import           Scientific.Workflow
 import           Control.Monad.IO.Class                (liftIO)
 import           Control.Monad.Reader                  (asks)
 
-import           Taiji.Core.Exporter  (exportResults)
 import           Taiji.Core.Functions
 import           Taiji.Types (_taiji_input)
 
@@ -31,16 +30,16 @@ builder = do
             submitToRemote .= Just False
             note .= "Read HiC loops from input file."
 
-    node' "Link_Gene_TF_Prep" [| \(activePro, tfbs, hic) ->
+    node' "Compute_Ranks_Prep" [| \(activePro, tfbs, expr, hic) ->
         let getFile e = head $ e^..replicates.folded.files
             tfbs' = M.fromList $ map (\x -> (x^.groupName, getFile x)) tfbs
             hic' = M.fromList $ map (\x -> (x^.groupName, x)) hic
         in flip map activePro $ \e ->
              let a = M.findWithDefault undefined (e^.groupName) tfbs'
              in ( e & replicates.mapped.files %~ (\f -> (f,a))
-                , M.lookup (e^.groupName) hic' )
+                , expr, M.lookup (e^.groupName) hic' )
         |] $ note .= "Prepare for parallel execution."
-    nodePS 1 "Link_Gene_TF" [| \(x, y) -> linkGeneToTFs x y |] $ do
+    nodePS 1 "Compute_Ranks" [| \(x, y, z) -> computeRanks x y z |] $ do
         note .= "Assign TFs to their target genes. We borrow the concept of " <>
             "gene regulatory domain from GREAT. Gene regulatory domain " <>
             "definition: Active promoters are used to define the basal " <>
@@ -49,12 +48,5 @@ builder = do
             "but no more than the maximum extension in one direction." <>
             "TF binding sites located in gene regulatory domains are then " <>
             "assigned to corresponding genes."
-    path ["Link_Gene_TF_Prep", "Link_Gene_TF"]
-
-    node' "TFRank_Prep" [| \(a,b) -> zip (repeat a) b |] $ note .= "Prepare for parallel execution."
-    nodePS 1 "TFRank" 'getTFRanks $ do
-        note .= ""
     nodeS "Output_Rank" 'outputRank $ return ()
-    path ["TFRank_Prep", "TFRank", "Output_Rank"]
-
-    nodeS "Export_Results" 'exportResults $ return ()
+    path ["Compute_Ranks_Prep", "Compute_Ranks", "Output_Rank"]

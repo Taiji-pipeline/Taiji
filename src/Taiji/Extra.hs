@@ -11,4 +11,4 @@ builder :: Builder ()
 builder = do
     nodePS 1 "TF_Module" 'getTFModule $ do
         note .= ""
-    path ["TFRank_Prep", "TF_Module"]
+    path ["Compute_Ranks", "TF_Module"]

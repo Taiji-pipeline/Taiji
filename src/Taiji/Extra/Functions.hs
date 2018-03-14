@@ -24,41 +24,39 @@ import           IGraph
 import           Scientific.Workflow
 
 import           Taiji.Core.Config           ()
-import           Taiji.Core.Functions        (buildNet, readExpression,
-                                              transform_peak_height)
+import           Taiji.Core.Functions        (transform_peak_height)
 import           Taiji.Types
 
 type GeneName = CI B.ByteString
 
-getTFModule :: ( Maybe (File '[] 'Tsv)
-               , (T.Text, File '[] 'Other) )
+getTFModule :: (T.Text, File '[] 'Other)
             -> WorkflowConfig TaijiConfig (T.Text, String)
-getTFModule (expr, (grp, fl)) = do
+getTFModule (grp, fl) = do
     dir <- asks (asDir . _taiji_output_dir) >>= getPath . (<> asDir "/Network")
     liftIO $ do
-        rnaseqData <- case expr of
-            Nothing -> return Nothing
-            Just e  -> Just <$> readExpression (e^.location) 1
-        links <- decodeFile $ fl^.location
-        let gr = buildNet False (B.pack $ T.unpack grp) links rnaseqData
-            output = dir ++ "/" ++ T.unpack grp ++ "_network.tsv"
+        gr <- decodeFile $ fl^.location :: IO (LGraph D NetNode NetEdge)
         return (grp, tfModule $ tfProfile gr)
 
 tfModule :: [(GeneName, U.Vector Double)] -> String
 tfModule xs = drawDendrogram $ fmap (show . fst) $ hclust Ward (V.fromList xs) (euclidean `on` snd)
 
-tfProfile :: LGraph D (GeneName, Double) (Double, Double, Double)
+tfProfile :: LGraph D NetNode NetEdge
           -> [(GeneName, U.Vector Double)]
 tfProfile gr = mapMaybe fn $ nodes gr
   where
     fn nd | null parent = Nothing
-          | otherwise = Just (fst $ nodeLab gr nd, val)
+          | otherwise = Just (nodeName $ nodeLab gr nd, val)
       where
         parent = pre gr nd
         val = U.create $ do
             vec <- UM.replicate n 0
             forM_ parent $ \x -> do
-                let v = (\(_,a,_) -> transform_peak_height a) $ edgeLab gr (x, nd)
+                let v = transform_peak_height $ sites $ edgeLab gr (x, nd)
                 UM.unsafeWrite vec x v
             return vec
     n = nNodes gr
+
+{-
+-- | TFs
+geneProfile :: LGraph D (GeneName, Double) (Double, Double, Double)
+-}

@@ -5,12 +5,9 @@
 {-# LANGUAGE RecordWildCards   #-}
 module Taiji.Core.Functions
     ( getActivePromoter
-    , linkGeneToTFs
-    , getTFRanks
     , outputRank
-    , linkageToGraphWithDefLabel
+    , computeRanks
     , transform_peak_height
-    , buildNet
     , readExpression
     , getHiCLoops
     ) where
@@ -31,6 +28,7 @@ import           Bio.Utils.Misc                    (readDouble, readInt)
 import           Conduit
 import           Control.Arrow
 import           Control.Lens                      hiding (pre)
+import           Control.Monad
 import           Control.Monad.Reader              (asks)
 import           Data.Binary                       (Binary (..), decodeFile,
                                                     encodeFile)
@@ -46,7 +44,8 @@ import           Data.List                         (foldl1', groupBy, sortBy,
 import           Data.List.Ordered                 (nubSort)
 import qualified Data.Map.Strict                   as M
 import qualified Data.Matrix.Unboxed               as MU
-import           Data.Maybe                        (fromJust, mapMaybe)
+import           Data.Maybe                        (fromJust, fromMaybe,
+                                                    mapMaybe)
 import           Data.Monoid                       ((<>))
 import           Data.Ord                          (comparing)
 import qualified Data.Set                          as S
@@ -61,13 +60,8 @@ import           Statistics.Correlation.Kendall    (kendall)
 import           Taiji.Core.Config                 ()
 import           Taiji.Types
 
-type GeneName = CI B.ByteString
-
-instance Binary (CI B.ByteString) where
-    put = put . original
-    get = fmap mk get
-
 -- | Gene and its regulators
+type GeneName = CI B.ByteString
 type Linkage = (GeneName, [(GeneName, [BED])])
 
 type HiCWithSomeFile = HiC N [Either SomeFile (SomeFile, SomeFile)]
@@ -120,42 +114,44 @@ getActiveTSS input peaks = do
     g xs = not $ B.isPrefixOf "#" (head xs) || (xs !! 2 /= "transcript")
 {-# INLINE getActiveTSS #-}
 
-linkGeneToTFs :: ATACSeq S ( File tag1 'Bed          -- ^ Active promoters
+computeRanks :: ATACSeq S ( File tag1 'Bed          -- ^ Active promoters
                            , File tag2 'Bed )        -- ^ TFBS
-              -> Maybe (HiC S (File '[ChromosomeLoop] 'Bed))
-              -> WorkflowConfig TaijiConfig (T.Text, File '[] 'Other)
-linkGeneToTFs atac hic = do
+             -> Maybe (File '[] 'Tsv)           -- ^ Expression
+             -> Maybe (HiC S (File '[ChromosomeLoop] 'Bed))  -- ^ HiC loops
+             -> WorkflowConfig TaijiConfig (T.Text, File '[] 'Other)
+computeRanks atac expr hic = do
     dir <- asks (asDir . _taiji_output_dir) >>= getPath . (<> asDir "/Network")
     liftIO $ do
         tfSites <- Bed.readBed' $ tfbs^.location
         activePro <- Bed.readBed' $ activeProFl^.location
-        regulators <- runResourceT $ findRegulators activePro loops tfSites
-        let result = flip map regulators $ \(geneName, tfs) ->
-                ( mk geneName
-                , map ((head *** id) . unzip) $
-                    groupBy ((==) `on` fst) $ sortBy (comparing fst) $
-                    map (getTFName &&& id) tfs
-                )
-            output = dir ++ "/" ++ T.unpack (fromJust $ atac^.groupName) ++
-                "_gene_TF_assign.bin"
-        encodeFile output (result :: [Linkage])
+        network <- fmap mkNetwork $ runResourceT $
+            findRegulators activePro loops tfSites
 
+        gr <- fmap pageRank $ case expr of
+            Nothing -> return network
+            Just e -> do
+                expr' <- readExpression 1 (B.pack $ T.unpack $ fromJust name) $ e^.location
+                return $ assignWeights expr' network
+
+        let output = dir ++ "/" ++ T.unpack (fromJust $ atac^.groupName) ++
+                "_network.bin"
+        encodeFile output gr
         return (fromJust $ atac^.groupName, location .~ output $ emptyFile)
   where
-    getTFName = mk . head . B.split '+' . fromJust . bedName
+    name = atac^.groupName
     [(activeProFl, tfbs)] = atac^..replicates.folded.files
     loops = case hic of
         Nothing -> Nothing
-        Just x -> if x^.groupName /= atac^.groupName
+        Just x -> if x^.groupName /= name
             then error "Expect the group names to be the same."
             else let [fl] = x^..replicates.folded.files
                  in Just $ read3DContact $ fl^.location
 
 findRegulators :: Monad m
-                 => [BED]  -- ^ Genes
-                 -> Maybe (Source m (BED3, BED3))  -- ^ 3D contacts
-                 -> [BED]  -- ^ TFBS
-                 -> m [(B.ByteString, [BED])]
+               => [BED]  -- ^ Genes
+               -> Maybe (Source m (BED3, BED3))  -- ^ 3D contacts
+               -> [BED]  -- ^ TFBS
+               -> m [Linkage]
 findRegulators activePro contacts tfbs = do
     (assign3D, rest) <- case contacts of
         Just contacts' -> do
@@ -175,15 +171,22 @@ findRegulators activePro contacts tfbs = do
         Bed.intersectBedWith S.fromList rest =$= filterC (not . null . snd) =$=
         mapC (first (fromJust . bedName)) $$ sinkList
 
-    return $ M.toList $ fmap S.toList $ M.unionWith S.union assign2D assign3D
+    let links = M.toList $ fmap S.toList $ M.unionWith S.union assign2D assign3D
+    return $ flip map links $ \(geneName, tfs) ->
+        ( mk geneName
+        , map ((head *** id) . unzip) $ groupBy ((==) `on` fst) $
+            sortBy (comparing fst) $ map (getTFName &&& id) tfs
+        )
   where
     tss = map (\BED{..} ->
         ((_chrom, _chromStart, fromJust _strand), fromJust _name)) activePro
     regDomains = map ( \(b, x) ->
         BED (chrom b) (chromStart b) (chromEnd b) (Just x) Nothing Nothing ) $
         getRegulatoryDomains (BasalPlusExtension 5000 1000 1000000) tss
+    getTFName = mk . head . B.split '+' . fromJust . bedName
 {-# INLINE findRegulators #-}
 
+{-
 getTFRanks :: ( Maybe (File '[] 'Tsv)
               , (T.Text, File '[] 'Other) )
            -> WorkflowConfig TaijiConfig (T.Text, [(GeneName, Double)])
@@ -208,117 +211,111 @@ getTFRanks (expr, (grp, fl)) = do
                         , toShortest $ transform_exp w1
                         , toShortest $ transform_peak_height w2
                         , toShortest $ transform_corr w3 ]
+                        -}
 
-outputRank :: [(T.Text, [(GeneName, Double)])]
+outputRank :: [(T.Text, File '[] 'Other)]
            -> WorkflowConfig TaijiConfig FilePath
-outputRank results = do
+outputRank inputs = do
     dir <- asks _taiji_output_dir >>= getPath . asDir
     let output = dir ++ "/GeneRanks.tsv"
+
+    ranks <- forM inputs $ \(ct, fl) -> liftIO $ do
+        gr <- decodeFile $ fl^.location :: IO (LGraph D NetNode NetEdge)
+        return $! M.fromList $ flip mapMaybe (nodes gr) $ \i ->
+            if null (pre gr i)
+                then Nothing
+                else do
+                    let n = nodeLab gr i
+                    x <- pageRankScore n
+                    return (nodeName n, x)
+    let genes = nubSort $ concatMap M.keys ranks
+        header = B.pack $ T.unpack $ T.intercalate "\t" $
+            "Gene" : fst (unzip inputs)
+        ranks' = flip map ranks $ \r -> flip map genes $
+            \g -> M.findWithDefault 0 g r
+
     liftIO $ B.writeFile output $ B.unlines $
-        header : zipWith toBS (map original genes) (transpose ranks)
+        header : zipWith toBS (map original genes) (transpose ranks')
     return output
   where
-    genes = nubSort $ concatMap (fst . unzip) $ snd $ unzip results
-    (groupNames, ranks) = unzip $ flip map results $ \(name, xs) ->
-        let geneRanks = M.fromList xs
-        in (name, flip map genes $ \g -> M.findWithDefault 0 g geneRanks)
-    header = B.pack $ T.unpack $ T.intercalate "\t" $ "Gene" : groupNames
     toBS nm xs = B.intercalate "\t" $ nm : map toShortest xs
 
-pageRank :: LGraph D (GeneName, Double) (Double, Double, Double)
-         -> [(GeneName, Double)]
-pageRank gr = flip mapMaybe (zip [0..] ranks) $ \(i, rank) ->
-    if i `S.member` tfs
-        then Just (fst $ nodeLab gr i, rank)
-        else Nothing
+pageRank :: LGraph D NetNode NetEdge
+         -> LGraph D NetNode NetEdge
+pageRank gr = mapNodes (\i x -> x{pageRankScore=Just $ ranks U.! i}) gr
   where
     labs = map (nodeLab gr) $ nodes gr
-    tfs = S.fromList $ filter (not . null . pre gr) $ nodes gr
-    ranks = let nodeWeights = map snd labs
-                edgeWeights = map (combine . edgeLab gr) $ edges gr
-            in personalizedPagerank gr nodeWeights (Just edgeWeights) 0.85
-    combine (x, y, z) = transform_exp x * transform_peak_height y * transform_corr z
+    nodeWeights = map (transform_node_weight . fromMaybe (-10) .
+        nodeScaledExpression) labs
+    edgeWeights = map (combine . edgeLab gr) $ edges gr
+    ranks = U.fromList $ personalizedPagerank gr nodeWeights (Just edgeWeights) 0.85
+    combine NetEdge{..} = transform_exp (fromMaybe 1 weightExpression) *
+        transform_peak_height sites
 {-# INLINE pageRank #-}
 
-transform_exp :: Double -> Double
-transform_exp = sqrt
-{-# INLINE transform_exp #-}
-
-transform_peak_height :: Double -> Double
-transform_peak_height x = 1 / (1 + exp (-(x - 5)))
-{-# INLINE transform_peak_height #-}
-
-transform_corr :: Double -> Double
-transform_corr = abs
-{-# INLINE transform_corr #-}
-
-linkageToGraphWithDefLabel ::(Hashable v, Read v, Eq v, Show v, Show e)
-                           => v -> e -> [Linkage] -> LGraph D (GeneName, v) e
-linkageToGraphWithDefLabel v e links = fromLabeledEdges $ concatMap toEdge links
+mkNetwork :: [Linkage] -> LGraph D NetNode NetEdge
+mkNetwork links = fromLabeledEdges $ concatMap toEdge links
   where
-    toEdge (gene, tfs) = zipWith ( \a b -> (((a,v), (fst b,v)), e) ) (repeat gene) tfs
-{-# INLINE linkageToGraphWithDefLabel #-}
+    toEdge (gene, tfs) = zipWith f (repeat gene) tfs
+    f a b = ( (NetNode a Nothing Nothing Nothing, NetNode (fst b) Nothing Nothing Nothing)
+            , NetEdge Nothing Nothing (snd b) )
 
-buildNet :: Bool  -- ^ whether to calculate correlation
-         -> B.ByteString  -- ^ cell type
-         -> [Linkage]
-         -> Maybe ( M.Map GeneName Int
-                  , M.Map B.ByteString Int
-                  , MU.Matrix (Double, Double)
-                  )
-         -> LGraph D (GeneName, Double) (Double, Double, Double)
-buildNet _ _ links Nothing = linkageToGraphWithDefLabel 1 (1, 1, 1) links
-buildNet useCor celltype links (Just (rows, cols, table)) = fromLabeledEdges $
-    concatMap toEdge links
+assignWeights :: M.Map (CI B.ByteString) (Double, Double)
+              -> LGraph D NetNode NetEdge
+              -> LGraph D NetNode NetEdge
+assignWeights weights gr = mapEdges assignEdgeWeight $
+    mapNodes assignNodeWeight gr
   where
-    toEdge (gene, tfs) = map fun tfs
-      where
-        idx_cell = M.findWithDefault undefined celltype cols
-        expr = table `MU.takeColumn` idx_cell
-        idx_gene = M.lookup gene rows
-        expr_gene = fmap (table `MU.takeRow`) idx_gene
-        fun (tf, beds) =
-            let idx_tf = M.lookup tf rows
-                weight1 = case idx_tf of
-                    Nothing -> 0.1
-                    Just j  -> fst $ expr U.! j
-                weight2 = maximum $ map (fromJust . bedScore) beds
-                weight3 = if useCor
-                    then case expr_gene of
-                            Nothing -> 0.4
-                            Just v1 -> case fmap (table `MU.takeRow`) idx_tf of
-                                Nothing -> 0.4
-                                Just v2 -> let cor = kendall $ U.zip v1 v2
-                                           in if isNaN cor then 0 else cor
-                    else 1
-                node_weight_gene = getNodeWeight idx_gene
-                node_weight_tf = getNodeWeight idx_tf
-            in ( ((gene, node_weight_gene), (tf, node_weight_tf))
-               , (weight1, weight2, weight3) )
-        getNodeWeight x = case x of
-            Nothing -> exp (-10)
-            Just i  -> exp $ snd $ expr U.! i
-{-# INLINE buildNet #-}
+    assignNodeWeight _ x =
+        let (raw, scaled) = M.findWithDefault (0.1, -10) (nodeName x) weights
+        in x{nodeExpression=Just raw, nodeScaledExpression=Just scaled}
+    assignEdgeWeight (fr, to) x =
+        let e = M.findWithDefault (0.1, -10) (nodeName $ nodeLab gr to) weights
+        in x{weightExpression=Just $ fst e}
+
 
 -- | Read RNA expression data
-readExpression :: FilePath
-               -> Double    -- ^ Threshold to call a gene as non-expressed
-               -> IO ( M.Map GeneName Int  -- ^ row
-                     , M.Map B.ByteString Int  -- ^ column
-                     , MU.Matrix (Double, Double)  -- ^ absolute value and z-score
-                     )
-readExpression fl cutoff = do
+readExpression :: Double    -- ^ Threshold to call a gene as non-expressed
+               -> B.ByteString  -- ^ cell type
+               -> FilePath
+               -> IO (M.Map (CI B.ByteString) (Double, Double)) -- ^ absolute value and z-score
+readExpression cutoff ct fl = do
     c <- B.readFile fl
     let ((_:header):dat) = map (B.split '\t') $ B.lines c
         rowNames = map (mk . head) dat
         dataTable = map (U.fromList . map ((+pseudoCount) . readDouble) . tail) dat
-    return ( M.fromList $ zip rowNames [0..]
-           , M.fromList $ zip header [0..]
-           , MU.fromRows $ zipWith U.zip dataTable $ map computeZscore dataTable
-           )
+        dataTable' = MU.fromRows $ zipWith U.zip dataTable $
+            map computeZscore dataTable :: MU.Matrix (Double, Double)
+        idx = fromMaybe (error $ "Cell type:" ++ B.unpack ct ++ " not found!") $
+            lookup ct $ zip header [0..]
+    return $ M.fromList $ zip rowNames $ U.toList $ dataTable' `MU.takeColumn` idx
   where
     pseudoCount = 0.1
     computeZscore xs
         | U.all (<cutoff) xs || U.all (== U.head xs) xs = U.replicate (U.length xs) (-10)
         | otherwise = scale xs
 {-# INLINE readExpression #-}
+
+
+
+--------------------------------------------------------------------------------
+-- Transformation functions
+--------------------------------------------------------------------------------
+
+transform_exp :: Double -> Double
+transform_exp = sqrt
+{-# INLINE transform_exp #-}
+
+transform_peak_height :: [BED] -> Double
+transform_peak_height beds = 1 / (1 + exp (-(x - 5)))
+  where
+    x = maximum $ map (fromJust . bedScore) beds
+{-# INLINE transform_peak_height #-}
+
+transform_corr :: Double -> Double
+transform_corr = abs
+{-# INLINE transform_corr #-}
+
+transform_node_weight :: Double -> Double
+transform_node_weight = exp
+{-# INLINE transform_node_weight #-}

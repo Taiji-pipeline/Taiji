@@ -9,7 +9,7 @@ extra-deps:
   commit:  997ea40bff1552248052fd82611094dd06dec217
 
 - git:     https://github.com/Taiji-pipeline/Taiji-types.git
-  commit:  61f13cc6f4d63b9ce3712710dcdd716c19aba487
+  commit:  558901d26f44bdbffd217b9a73bdbbab56493c62
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
   commit:  6af63147064c8bb7721e719fa6accc4aecea67bd
@@ -21,7 +21,7 @@ extra-deps:
   commit:  a303a6a96f1db448579924b991d795fb4b9909e1
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  e2734316312c10a1557c86f0c1dc3a6f06425895
+  commit:  06bc32109056debc2a5d07a9a6348e2782d37615
 
 - bioinformatics-toolkit-0.4.0
 - HsHTSLib-1.3.2.2

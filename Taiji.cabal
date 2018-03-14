@@ -20,7 +20,7 @@ library
   exposed-modules:     Taiji.Core
                        Taiji.Core.Config
                        Taiji.Core.Functions
-                       Taiji.Core.Exporter
+                       -- Taiji.Core.Exporter
                        Taiji.Extra
                        Taiji.Extra.Functions
 

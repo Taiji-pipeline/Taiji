@@ -37,7 +37,7 @@ builder = do
         in flip map activePro $ \e ->
              let a = M.findWithDefault undefined (e^.groupName) tfbs'
              in ( e & replicates.mapped.files %~ (\f -> (f,a))
-                , expr, M.lookup (e^.groupName) hic' )
+                , M.lookup (e^.groupName) hic', expr )
         |] $ note .= "Prepare for parallel execution."
     nodePS 1 "Compute_Ranks" [| \(x, y, z) -> computeRanks x y z |] $ do
         note .= "Assign TFs to their target genes. We borrow the concept of " <>

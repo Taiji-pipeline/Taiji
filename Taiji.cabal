@@ -18,14 +18,13 @@ library
   ghc-options:         -Wall
 
   exposed-modules:     Taiji.Core
+                       Taiji.Core.RegulatoryElement
+                       Taiji.Core.Network
                        Taiji.Core.Config
-                       Taiji.Core.Functions
                        -- Taiji.Core.Exporter
                        Taiji.Extra
                        Taiji.Extra.Functions
                        Taiji.Types
-
-  other-modules:       Taiji.Core.Functions.Internal.RegulatoryElement
 
   build-depends:       base >= 4.7 && < 5
                      , aeson

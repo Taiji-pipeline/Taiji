@@ -1,0 +1,35 @@
+ATAC-Seq:
+  - group: 'heart_left_ventricle'
+    id: heart_left_ventricle_ATAC
+    replicates:
+    - rep: 1
+      files:
+        - pair:
+          - path: ENCFF766IGD
+            tags: ['ENCODE']
+          - path: ENCFF075UOA
+            tags: ['ENCODE']
+
+  - group: 'gastrocnemius_medialis'
+    id: 'gastrocnemius_medialis_ATAC'
+    replicates:
+    - rep: 1
+      files:
+      - path: ENCFF858PLS
+        tags: [ENCODE, Pairend]
+
+RNA-Seq:
+  - group: 'heart_left_ventricle'
+    id: heart_left_ventricle_RNA
+    replicates:
+    - rep: 1
+      files:
+        - path: ENCFF884JDN
+          tags: ['ENCODE', 'GeneQuant']
+  - group: 'gastrocnemius_medialis'
+    id: 'gastrocnemius_medialis_RNA'
+    replicates:
+    - rep: 1
+      files:
+      - path: ENCFF310PUB
+        tags: [ENCODE, GeneQuant]

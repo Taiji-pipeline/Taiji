@@ -21,5 +21,5 @@ mainWith defaultMainOpts
         Core.builder
         Extra.builder
         path ["ATAC_Call_Peak", "Find_Active_Promoter"]
-        [ "Find_Active_Promoter", "ATAC_Get_TFBS", "RNA_Make_Expr_Table"
-            , "HiC_Read_Input" ] ~> "Compute_Ranks_Prep"
+        [ "Find_Active_Promoter", "ATAC_Get_TFBS", "ATAC_Call_Peak"
+            , "RNA_Make_Expr_Table", "HiC_Read_Input" ] ~> "Compute_Ranks_Prep"

@@ -24,7 +24,7 @@ import           IGraph
 import           Scientific.Workflow
 
 import           Taiji.Core.Config           ()
-import           Taiji.Core.Functions        (transform_peak_height)
+import           Taiji.Core.Network          (getSiteWeight)
 import           Taiji.Types
 
 type GeneName = CI B.ByteString
@@ -51,7 +51,7 @@ tfProfile gr = mapMaybe fn $ nodes gr
         val = U.create $ do
             vec <- UM.replicate n 0
             forM_ parent $ \x -> do
-                let v = transform_peak_height $ sites $ edgeLab gr (x, nd)
+                let v = getSiteWeight $ sites $ edgeLab gr (x, nd)
                 UM.unsafeWrite vec x v
             return vec
     n = nNodes gr

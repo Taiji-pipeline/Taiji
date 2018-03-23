@@ -3,20 +3,22 @@
 module Taiji.Core (builder) where
 
 import           Bio.Data.Experiment
-import           Bio.Data.Experiment.Parser (readHiC)
+import           Bio.Data.Experiment.Parser   (readHiC)
 import           Control.Lens
-import qualified Data.Map.Strict      as M
-import           Data.Monoid          ((<>))
+import           Control.Monad.IO.Class       (liftIO)
+import           Control.Monad.Reader         (asks)
+import qualified Data.Map.Strict              as M
+import           Data.Maybe                   (fromJust)
+import           Data.Monoid                  ((<>))
 import           Scientific.Workflow
-import           Control.Monad.IO.Class                (liftIO)
-import           Control.Monad.Reader                  (asks)
 
-import           Taiji.Core.Functions
-import           Taiji.Types (_taiji_input)
+import           Taiji.Core.Network
+import           Taiji.Core.RegulatoryElement
+import           Taiji.Types                  (_taiji_input)
 
 builder :: Builder ()
 builder = do
-    nodePS 1 "Find_Active_Promoter" 'getActivePromoter $ do
+    nodePS 1 "Find_Active_Promoter" 'findActivePromoters $ do
         note .= "Identify active promoters. Promoters are defined by " <>
             "-5000 ~ +1000 regions around annotated transcription start sites. " <>
             "If a promoter is overlapped with ATAC-seq peaks, we assume it is active."
@@ -30,16 +32,21 @@ builder = do
             submitToRemote .= Just False
             note .= "Read HiC loops from input file."
 
-    node' "Compute_Ranks_Prep" [| \(activePro, tfbs, expr, hic) ->
-        let getFile e = head $ e^..replicates.folded.files
-            tfbs' = M.fromList $ map (\x -> (x^.groupName, getFile x)) tfbs
-            hic' = M.fromList $ map (\x -> (x^.groupName, x)) hic
+    node' "Compute_Ranks_Prep" [| \(activePro, tfbs, peaks, expr, hic) ->
+        let mkDict xs = M.fromList $ map (\x ->
+                (x^.groupName, head $ x^..replicates.folded.files)) xs
+            lookup' x xs = M.lookup (x^.groupName) xs
+            tfbs' = mkDict tfbs
+            hic' = mkDict hic
+            peaks' = mkDict peaks
         in flip map activePro $ \e ->
-             let a = M.findWithDefault undefined (e^.groupName) tfbs'
-             in ( e & replicates.mapped.files %~ (\f -> (f,a))
-                , M.lookup (e^.groupName) hic', expr )
+            ( e & replicates.mapped.files %~ (\f -> (f, fromJust $ lookup' e tfbs'))
+            , fromJust $ lookup' e peaks'
+            , fromJust $ lookup' e peaks'
+            , M.lookup (e^.groupName) hic'
+            , expr )
         |] $ note .= "Prepare for parallel execution."
-    nodePS 1 "Compute_Ranks" [| \(x, y, z) -> computeRanks x y z |] $ do
+    nodePS 1 "Compute_Ranks" [| \(x1,x2,x3,x4,x5) -> computeRanks x1 x2 x3 x4 x5 |] $ do
         note .= "Assign TFs to their target genes. We borrow the concept of " <>
             "gene regulatory domain from GREAT. Gene regulatory domain " <>
             "definition: Active promoters are used to define the basal " <>

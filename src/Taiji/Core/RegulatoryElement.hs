@@ -5,9 +5,11 @@
 {-# LANGUAGE RecordWildCards   #-}
 
 module Taiji.Core.RegulatoryElement
-    ( getHiCLoops
+    ( Linkage
+    , getHiCLoops
     , findActivePromoters
     , findTargets
+    , createLinkage
     ) where
 
 import           Bio.Data.Bed
@@ -19,19 +21,24 @@ import           Bio.Utils.Misc           (readInt)
 import           Conduit
 import           Control.Lens
 import           Control.Monad.Reader     (asks)
-import           Control.Monad.State.Lazy (StateT, execStateT, modify)
+import           Control.Monad.State.Lazy (StateT, execStateT, get, put)
 import qualified Data.ByteString.Char8    as B
-import           Data.CaseInsensitive     (mk)
+import           Data.CaseInsensitive     (CI, mk)
 import           Data.Either              (lefts)
+import qualified Data.HashMap.Strict      as M
 import qualified Data.IntervalMap.Strict  as IM
 import           Data.List.Ordered        (nubSort)
-import           Data.Maybe               (fromJust, isNothing)
+import           Data.Maybe               (fromJust, fromMaybe, isNothing)
 import           Data.Singletons          (SingI)
 import qualified Data.Vector              as V
 import           Scientific.Workflow      hiding (_data)
 
 import           Taiji.Core.Config        ()
 import           Taiji.Types
+
+-- | Gene and its regulators
+type GeneName = CI B.ByteString
+type Linkage = (GeneName, [(GeneName, (Maybe (Double, Int), Maybe (Double, Int), Maybe (Double, Int)))])
 
 type HiCWithSomeFile = HiC N [Either SomeFile (SomeFile, SomeFile)]
 
@@ -75,13 +82,24 @@ readPromoters = (fmap . concatMap) fn . readGenes
             | otherwise = geneRight : map snd geneTranscripts
 {-# INLINE readPromoters #-}
 
+createLinkage :: St -> [Linkage]
+createLinkage (pro, enh, distal) = M.toList $ combineHashMaps fn pro enh distal
+  where
+    fn a b c = M.toList $ combineHashMaps g (fromMaybe M.empty a) (fromMaybe M.empty b) (fromMaybe M.empty c)
+    g a b c = (a, b, c)
+
+    f x = let gene = _target_gene $ _ext_data x
+          in case gene of
+              Nothing -> Nothing
+              Just g  -> Just (g, [x])
+{-# INLINE createLinkage #-}
 
 findTargets :: ATACSeq S ( File tag1 'Bed          -- ^ Active promoters
                          , File tag2 'Bed )        -- ^ TFBS
             -> File tag3 'NarrowPeak
             -> File tag4 'NarrowPeak
             -> Maybe (File '[ChromosomeLoop] 'Bed)  -- ^ HiC loops
-            -> IO [TFBS]
+            -> IO St
 findTargets atac activityPro activityEnh hic = do
     promoters <- readBed' $ fl_pro^.location
     let enhancers = getRegulatoryDomains 1000000 promoters
@@ -97,9 +115,26 @@ findTargets atac activityPro activityEnh hic = do
     let action = runConduit $ readBed (fl_tfbs^.location) .|
             findTargets_ promoters enhancers distalEhancers activityPro' activityEnh' .|
             sinkNull
-    execStateT action []
+    execStateT action (M.empty, M.empty, M.empty)
   where
     [(fl_pro, fl_tfbs)] = atac^..replicates.folded.files
+
+type St = ( M.HashMap GeneName (M.HashMap GeneName (Double, Int))
+          , M.HashMap GeneName (M.HashMap GeneName (Double, Int))
+          , M.HashMap GeneName (M.HashMap GeneName (Double, Int)) )
+
+combineHashMaps :: (Maybe v -> Maybe v -> Maybe v -> v')
+                -> M.HashMap GeneName v
+                -> M.HashMap GeneName v
+                -> M.HashMap GeneName v
+                -> M.HashMap GeneName v'
+combineHashMaps fn m1 m2 m3 = M.fromList $ flip map keys $
+    \k -> (k, fn (M.lookup k m1) (M.lookup k m2) (M.lookup k m3))
+  where
+    keys = nubSort $ M.keys m1 ++ M.keys m2 ++ M.keys m3
+
+combineFunc :: Double -> Double -> Double
+combineFunc = max
 
 findTargets_ :: Monad m
              => [Promoter]
@@ -107,38 +142,56 @@ findTargets_ :: Monad m
              -> [RegDomain]
              -> BEDTree Double   -- ^ promoter activity
              -> BEDTree Double   -- ^ enhancer activity
-             -> ConduitT BED TFBS (StateT [TFBS] m) ()
-findTargets_ promoters enhancers distalEhancers activityPro activityEnh= mapC toSite .|
-    assignTFBS promoters .| concatMapMC (fn Pro activityPro) .|
-    assignTFBS distalEhancers .| concatMapMC (fn NearbyEnh activityEnh) .|
-    assignTFBS enhancers .| concatMapMC (fn DistalEnh activityEnh)
+             -> ConduitT BED BED (StateT St m) ()
+findTargets_ promoters enhancers distalEhancers activityPro activityEnh=
+    assignTFBS promoters .| concatMapMC (fn 1 activityPro) .|
+    assignTFBS distalEhancers .| concatMapMC (fn 2 activityEnh) .|
+    assignTFBS enhancers .| concatMapMC (fn (3::Int) activityEnh)
   where
-    toSite x = BEDExt (x :: BED) $ SiteInfo (mk $ fromJust $ x^.name)
-        Nothing Nothing Nothing
     fn _ _ (Left x) = return $ Just x
-    fn t tree (Right x) = case getActivity x tree of
+    fn idx tree (Right (tf, gene)) = case getActivity tf tree of
         Nothing -> return Nothing
-        Just a -> do
-            let x' = x & _data.target_through .~ Just t
-                       & _data.peak_signal .~ Just a
-            modify (x':)
+        Just v -> do
+            (a,b,c) <- get
+            let tfName = mk $ tf^.name._Just
+                sc = transform_site_pvalue (fromJust $ tf^.score) *
+                    transform_peak_height v
+                table = case idx of
+                    1 -> a
+                    2 -> b
+                    3 -> c
+                    _ -> undefined
+                table' =
+                    let f (Just m) = Just $ M.alter g tfName m
+                        f Nothing  = Just $ M.singleton tfName (sc, 1)
+                        g Nothing         = Just (sc, 1)
+                        g (Just (x1, x2)) = Just (combineFunc x1 sc, x2 + 1)
+                    in M.alter f gene table
+                newSt = case idx of
+                    1 -> (table', b, c)
+                    2 -> (a, table', c)
+                    3 -> (a, b, table')
+                    _ -> undefined
+            put newSt
             return Nothing
+    transform_peak_height x = 1 / (1 + exp (-(x - 5)))
+    transform_site_pvalue x' = 1 / (1 + exp (-(x - 5)))
+      where
+        x = negate $ logBase 10 $ max 1e-20 x'
 {-# INLINE findTargets_ #-}
 
 assignTFBS :: Monad m
            => [RegDomain]   -- ^ Regulatory element
-           -> ConduitT TFBS (Either TFBS TFBS) m ()
+           -> ConduitT BED (Either BED (BED, CI B.ByteString)) m ()
 assignTFBS regions = intersectBedWith f regions .| concatC
   where
     f tfbs promoters
         | null promoters = [Left tfbs]
-        | otherwise = zipWith (\a b -> Right $ a &
-            _data.target_gene .~ Just (b^._data))
-            (repeat tfbs) promoters
+        | otherwise = zipWith (\a b -> Right (a,  b^._data)) (repeat tfbs) promoters
 {-# INLINE assignTFBS #-}
 
 -- | Assign activity to TFBS
-getActivity :: TFBS -> BEDTree Double -> Maybe Double
+getActivity :: BED -> BEDTree Double -> Maybe Double
 getActivity tfbs beds = case IM.elems (intersecting beds tfbs) of
     [] -> Nothing
     xs -> Just $ maximum xs

@@ -8,25 +8,25 @@ module Taiji.Core.Network where
 
 import           Bio.Data.Bed
 import           Bio.Data.Experiment
-import           Bio.Utils.Functions                             (scale)
-import           Control.Monad.Reader                            (asks)
-import           Data.Monoid                                     ((<>))
-import           Bio.Utils.Misc                                  (readDouble)
-import           Bio.Pipeline.Utils                              (asDir,
-                                                                  getPath)
+import           Bio.Pipeline.Utils                (asDir, getPath)
+import           Bio.Utils.Functions               (scale)
+import           Bio.Utils.Misc                    (readDouble)
 import           Conduit
 import           Control.Lens                      hiding (pre, to)
 import           Control.Monad
-import           Data.Binary                       (decodeFile, encodeFile)
+import           Control.Monad.Reader              (asks)
 import qualified Data.ByteString.Char8             as B
 import           Data.CaseInsensitive              (CI, mk, original)
 import           Data.Double.Conversion.ByteString (toShortest)
+import           Data.Either                       (fromRight)
 import           Data.List                         (transpose)
 import           Data.List.Ordered                 (nubSort)
 import qualified Data.Map.Strict                   as M
 import qualified Data.Matrix.Unboxed               as MU
 import           Data.Maybe                        (fromJust, fromMaybe,
                                                     mapMaybe)
+import           Data.Monoid                       ((<>))
+import           Data.Serialize                    (decode, encode)
 import qualified Data.Text                         as T
 import qualified Data.Vector.Unboxed               as U
 import           IGraph
@@ -34,12 +34,8 @@ import           IGraph.Structure                  (personalizedPagerank)
 import           Scientific.Workflow               hiding (_data)
 
 import           Taiji.Core.Config                 ()
-import           Taiji.Core.RegulatoryElement      (findTargets)
+import           Taiji.Core.RegulatoryElement
 import           Taiji.Types
-
--- | Gene and its regulators
-type GeneName = CI B.ByteString
-type Linkage = (GeneName, [(GeneName, [TFBS])])
 
 computeRanks :: ATACSeq S ( File tag1 'Bed          -- ^ Active promoters
                           , File tag2 'Bed )        -- ^ TFBS
@@ -63,19 +59,8 @@ computeRanks atac activityPro activityEnh hic expr = do
 
         let output = dir ++ "/" ++ T.unpack (fromJust $ atac^.groupName) ++
                 "_network.bin"
-        encodeFile output gr
+        B.writeFile output $ encode gr
         return (fromJust $ atac^.groupName, location .~ output $ emptyFile)
-
-createLinkage :: [TFBS] -> [Linkage]
-createLinkage tfbs = M.toList $ fmap
-    (M.toList . M.fromListWith (++) . map (\x -> (_tf_name $ _ext_data x, [x]))) $
-    M.fromListWith (++) $ mapMaybe f tfbs
-  where
-    f x = let gene = _target_gene $ _ext_data x
-          in case gene of
-              Nothing -> Nothing
-              Just g  -> Just (g, [x])
-{-# INLINE createLinkage #-}
 
 mkNetwork :: [Linkage] -> LGraph D NetNode NetEdge
 mkNetwork links = fromLabeledEdges $ concatMap toEdge links
@@ -142,7 +127,8 @@ outputRank inputs = do
     let output = dir ++ "/GeneRanks.tsv"
 
     ranks <- forM inputs $ \(_, fl) -> liftIO $ do
-        gr <- decodeFile $ fl^.location :: IO (LGraph D NetNode NetEdge)
+        gr <- fmap (fromRight undefined . decode) $ B.readFile $
+            fl^.location :: IO (LGraph D NetNode NetEdge)
         return $! M.fromList $ flip mapMaybe (nodes gr) $ \i ->
             if null (pre gr i)
                 then Nothing
@@ -162,30 +148,43 @@ outputRank inputs = do
   where
     toBS nm xs = B.intercalate "\t" $ nm : map toShortest xs
 
+    {-
+outputNetwork :: (T.Text, File '[] 'Other)
+              -> WorkflowConfig TaijiConfig ()
+outputNetwork (ct, fl) = do
+    let output =
+    gr <- decodeFile $ fl^.location :: IO (LGraph D NetNode NetEdge)
+    showNetwork gr .| sinkFile
+    -}
+
+    {-
+showNetwork :: Monad m
+            => LGraph D NetNode NetEdge
+            -> ConduitT i B.ByteString m ()
+showNetwork gr = yieldMany (edges gr) .| mapC fn .| unlinesAsciiC
+  where
+    fn (fr, to) =
+        let fr_name = original $ nodeName $ nodeLab gr fr
+            to_name = original $ nodeName $ nodeLab gr to
+            f3 = B.intercalate ";" $ map (B.pack . show) sites $ edgeLab gr (fr, to)
+        in B.intercalate "\t" [fr_name, to_name, f3]
+{-# INLINE showNetwork #-}
+-}
+
+
 --------------------------------------------------------------------------------
 -- Transformation functions
 --------------------------------------------------------------------------------
 
-getSiteWeight :: [TFBS] -> Double
-getSiteWeight = maximum . map (\x -> transform_peak_height x * transform_site_pvalue x)
+getSiteWeight :: (Maybe (Double, Int), Maybe (Double, Int), Maybe (Double, Int)) -> Double
+getSiteWeight (a,b,c) = maximum [ fromMaybe 0 $ fmap fst a
+                                , fromMaybe 0 $ fmap fst b
+                                , fromMaybe 0 $ fmap fst c ]
 {-# INLINE getSiteWeight #-}
 
 transform_exp :: Double -> Double
 transform_exp = sqrt
 {-# INLINE transform_exp #-}
-
--- | Transform peak's p-value into probability score
-transform_peak_height :: TFBS -> Double
-transform_peak_height tfbs = 1 / (1 + exp (-(x - 5)))
-  where
-    x = fromJust $ (^._data.peak_signal) tfbs
-{-# INLINE transform_peak_height #-}
-
-transform_site_pvalue :: TFBS -> Double
-transform_site_pvalue tfbs = 1 / (1 + exp (-(x - 5)))
-  where
-    x = negate $ logBase 10 $ fromJust $ (^._bed.score) tfbs
-{-# INLINE transform_site_pvalue #-}
 
 transform_corr :: Double -> Double
 transform_corr = abs

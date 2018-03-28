@@ -10,12 +10,13 @@ import           Bio.Pipeline.Utils          (asDir, getPath)
 import           Control.Lens                ((^.))
 import           Control.Monad
 import           Control.Monad.Reader        (asks, liftIO)
-import           Data.Binary                 (decodeFile)
 import qualified Data.ByteString.Char8       as B
 import           Data.CaseInsensitive        (CI)
+import           Data.Either                 (fromRight)
 import           Data.Function               (on)
 import           Data.Maybe
 import           Data.Monoid                 ((<>))
+import           Data.Serialize              (decode)
 import qualified Data.Text                   as T
 import qualified Data.Vector                 as V
 import qualified Data.Vector.Unboxed         as U
@@ -34,7 +35,8 @@ getTFModule :: (T.Text, File '[] 'Other)
 getTFModule (grp, fl) = do
     dir <- asks (asDir . _taiji_output_dir) >>= getPath . (<> asDir "/Network")
     liftIO $ do
-        gr <- decodeFile $ fl^.location :: IO (LGraph D NetNode NetEdge)
+        gr <- fmap (fromRight undefined . decode) $ B.readFile $
+            fl^.location :: IO (LGraph D NetNode NetEdge)
         return (grp, tfModule $ tfProfile gr)
 
 tfModule :: [(GeneName, U.Vector Double)] -> String

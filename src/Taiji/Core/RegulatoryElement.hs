@@ -4,41 +4,44 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
-module Taiji.Core.RegulatoryElement
-    ( Linkage
-    , getHiCLoops
-    , findActivePromoters
-    , findTargets
-    , createLinkage
-    ) where
+module Taiji.Core.RegulatoryElement where
+--    ( Linkage
+--    , getHiCLoops
+--    , findActivePromoters
+--    , findTargets
+--    , createLinkage
+ --   ) where
 
 import           Bio.Data.Bed
 import           Bio.Data.Experiment
 import           Bio.Pipeline.NGS
-import           Bio.Pipeline.Utils       (asDir, getPath)
+import           Bio.Pipeline.Utils                (asDir, getPath)
 import           Bio.RealWorld.GENCODE
-import           Bio.Utils.Misc           (readInt)
+import           Bio.Utils.Misc                    (readDouble, readInt)
 import           Conduit
 import           Control.Lens
-import           Control.Monad.Reader     (asks)
-import           Control.Monad.State.Lazy (StateT, execStateT, get, put)
-import qualified Data.ByteString.Char8    as B
-import           Data.CaseInsensitive     (CI, mk)
-import           Data.Either              (lefts)
-import qualified Data.HashMap.Strict      as M
-import qualified Data.IntervalMap.Strict  as IM
-import           Data.List.Ordered        (nubSort)
-import           Data.Maybe               (fromJust, fromMaybe, isNothing)
-import           Data.Singletons          (SingI)
-import qualified Data.Vector              as V
-import           Scientific.Workflow      hiding (_data)
+import           Control.Monad.Reader              (asks, forM_, when)
+import qualified Data.ByteString.Char8             as B
+import           Data.CaseInsensitive              (CI, mk, original)
+import           Data.Double.Conversion.ByteString (toShortest)
+import           Data.Either                       (lefts)
+import qualified Data.HashMap.Strict               as M
+import qualified Data.IntervalMap.Strict           as IM
+import           Data.List.Ordered                 (nubSort)
+import           Data.Maybe                        (fromJust, isNothing)
+import           Data.Monoid                       ((<>))
+import           Data.Singletons                   (SingI)
+import qualified Data.Text                         as T
+import qualified Data.Vector                       as V
+import           Scientific.Workflow               hiding (_data)
+import           System.IO
 
-import           Taiji.Core.Config        ()
+import           Taiji.Core.Config                 ()
 import           Taiji.Types
 
 -- | Gene and its regulators
 type GeneName = CI B.ByteString
-type Linkage = (GeneName, [(GeneName, (Maybe (Double, Int), Maybe (Double, Int), Maybe (Double, Int)))])
+type Linkage = (GeneName, [(GeneName, Double)])
 
 type HiCWithSomeFile = HiC N [Either SomeFile (SomeFile, SomeFile)]
 
@@ -82,97 +85,78 @@ readPromoters = (fmap . concatMap) fn . readGenes
             | otherwise = geneRight : map snd geneTranscripts
 {-# INLINE readPromoters #-}
 
-createLinkage :: St -> [Linkage]
-createLinkage (pro, enh, distal) = M.toList $ combineHashMaps fn pro enh distal
+createLinkage :: (FilePath, FilePath, FilePath) -> IO [Linkage]
+createLinkage (f1, f2, f3) = fmap
+    (M.toList . fmap (M.toList . M.fromListWith combineFunc)) $
+    createTable f1 M.empty >>= createTable f2 >>= createTable f3
   where
-    fn a b c = M.toList $ combineHashMaps g (fromMaybe M.empty a) (fromMaybe M.empty b) (fromMaybe M.empty c)
-    g a b c = (a, b, c)
-
-    f x = let gene = _target_gene $ _ext_data x
-          in case gene of
-              Nothing -> Nothing
-              Just g  -> Just (g, [x])
-{-# INLINE createLinkage #-}
+    createTable fl x = runResourceT $ runConduit $ sourceFileBS fl .|
+        linesUnboundedAsciiC .| mapC (f . B.split '\t') .| foldlC build x
+    f [a, b, c] = (mk a, (mk b, readDouble c))
+    f _         = error "unexpected input"
+    build m (g, x) = M.alter add g m
+        where
+          add Nothing   = Just [x]
+          add (Just xs) = Just $ x : xs
 
 findTargets :: ATACSeq S ( File tag1 'Bed          -- ^ Active promoters
                          , File tag2 'Bed )        -- ^ TFBS
             -> File tag3 'NarrowPeak
             -> File tag4 'NarrowPeak
             -> Maybe (File '[ChromosomeLoop] 'Bed)  -- ^ HiC loops
-            -> IO St
+            -> WorkflowConfig TaijiConfig (T.Text, (FilePath, FilePath, FilePath))
 findTargets atac activityPro activityEnh hic = do
-    promoters <- readBed' $ fl_pro^.location
-    let enhancers = getRegulatoryDomains 1000000 promoters
-    distalEhancers <- case hic of
-        Nothing -> return []
-        Just fl -> runResourceT $ runConduit $ read3DContact (fl^.location) .|
-            getContactingRegions promoters .| sinkList
-    activityPro' <- fmap (bedToTree max . map (\x -> (x, fromJust $ x^.npPvalue))) $
-        readBed' $ activityPro^.location
-    activityEnh' <- fmap (bedToTree max . map (\x -> (x, fromJust $ x^.npPvalue))) $
-        readBed' $ activityEnh^.location
-
-    let action = runConduit $ readBed (fl_tfbs^.location) .|
-            findTargets_ promoters enhancers distalEhancers activityPro' activityEnh' .|
-            sinkNull
-    execStateT action (M.empty, M.empty, M.empty)
+    dir <- asks (asDir . (<> ("/Network/" <> T.unpack grp)) . _taiji_output_dir)
+        >>= getPath
+    let out1 = dir ++ "/TFBS_promoter.tsv"
+        out2 = dir ++ "/TFBS_distal.tsv"
+        out3 = dir ++ "/TFBS_3D.tsv"
+    liftIO $ withFile out1 WriteMode $ \fh1 -> withFile out2 WriteMode $
+        \fh2 -> withFile out3 WriteMode $ \fh3 -> do
+            promoters <- readBed' $ fl_pro^.location
+            let enhancers = getRegulatoryDomains 1000000 promoters
+            distalEhancers <- case hic of
+                Nothing -> return []
+                Just fl -> runResourceT $ runConduit $ read3DContact (fl^.location) .|
+                    getContactingRegions promoters .| sinkList
+            activityPro' <- fmap (bedToTree max . map (\x -> (x, fromJust $ x^.npPvalue))) $
+                readBed' $ activityPro^.location
+            activityEnh' <- fmap (bedToTree max . map (\x -> (x, fromJust $ x^.npPvalue))) $
+                readBed' $ activityEnh^.location
+            runConduit $ readBed (fl_tfbs^.location) .| findTargets_ promoters
+                enhancers distalEhancers activityPro' activityEnh' (fh1, fh2, fh3)
+    return (grp, (out1, out2, out3))
   where
     [(fl_pro, fl_tfbs)] = atac^..replicates.folded.files
-
-type St = ( M.HashMap GeneName (M.HashMap GeneName (Double, Int))
-          , M.HashMap GeneName (M.HashMap GeneName (Double, Int))
-          , M.HashMap GeneName (M.HashMap GeneName (Double, Int)) )
-
-combineHashMaps :: (Maybe v -> Maybe v -> Maybe v -> v')
-                -> M.HashMap GeneName v
-                -> M.HashMap GeneName v
-                -> M.HashMap GeneName v
-                -> M.HashMap GeneName v'
-combineHashMaps fn m1 m2 m3 = M.fromList $ flip map keys $
-    \k -> (k, fn (M.lookup k m1) (M.lookup k m2) (M.lookup k m3))
-  where
-    keys = nubSort $ M.keys m1 ++ M.keys m2 ++ M.keys m3
+    grp = atac^.groupName._Just
 
 combineFunc :: Double -> Double -> Double
 combineFunc = max
 
-findTargets_ :: Monad m
-             => [Promoter]
+findTargets_ :: [Promoter]
              -> [RegDomain]
              -> [RegDomain]
              -> BEDTree Double   -- ^ promoter activity
              -> BEDTree Double   -- ^ enhancer activity
-             -> ConduitT BED BED (StateT St m) ()
-findTargets_ promoters enhancers distalEhancers activityPro activityEnh=
-    assignTFBS promoters .| concatMapMC (fn 1 activityPro) .|
-    assignTFBS distalEhancers .| concatMapMC (fn 2 activityEnh) .|
-    assignTFBS enhancers .| concatMapMC (fn (3::Int) activityEnh)
+             -> ( Handle -- ^ promtors' sites
+                , Handle -- ^ enhancers' sites
+                , Handle )     -- ^ 3Denhancers' sites
+             -> ConduitT BED o IO ()
+findTargets_ promoters enhancers distalEhancers activityPro activityEnh (fh1,fh2,fh3) =
+    assignTFBS promoters .| concatMapMC (fn fh1 activityPro) .|
+        assignTFBS distalEhancers .| concatMapMC (fn fh3 activityEnh) .|
+        assignTFBS enhancers .| concatMapMC (fn fh2 activityEnh) .| sinkNull
   where
     fn _ _ (Left x) = return $ Just x
-    fn idx tree (Right (tf, gene)) = case getActivity tf tree of
+    fn hdl act (Right (tfbs, genes)) = case getActivity tfbs act of
         Nothing -> return Nothing
         Just v -> do
-            (a,b,c) <- get
-            let tfName = mk $ tf^.name._Just
-                sc = transform_site_pvalue (fromJust $ tf^.score) *
-                    transform_peak_height v
-                table = case idx of
-                    1 -> a
-                    2 -> b
-                    3 -> c
-                    _ -> undefined
-                table' =
-                    let f (Just m) = Just $ M.alter g tfName m
-                        f Nothing  = Just $ M.singleton tfName (sc, 1)
-                        g Nothing         = Just (sc, 1)
-                        g (Just (x1, x2)) = Just (combineFunc x1 sc, x2 + 1)
-                    in M.alter f gene table
-                newSt = case idx of
-                    1 -> (table', b, c)
-                    2 -> (a, table', c)
-                    3 -> (a, b, table')
-                    _ -> undefined
-            put newSt
+            let sc = transform_peak_height v *
+                    transform_site_pvalue (fromJust $ tfbs^.score)
+                output = zip genes $
+                    repeat (head $ B.split '+' $ tfbs^.name._Just, sc)
+            when (sc >= 0.1) $ forM_ output $ \(g, (tf, x)) ->
+                B.hPutStrLn hdl $ B.intercalate "\t" [original g, tf, toShortest x]
             return Nothing
     transform_peak_height x = 1 / (1 + exp (-(x - 5)))
     transform_site_pvalue x' = 1 / (1 + exp (-(x - 5)))
@@ -180,14 +164,13 @@ findTargets_ promoters enhancers distalEhancers activityPro activityEnh=
         x = negate $ logBase 10 $ max 1e-20 x'
 {-# INLINE findTargets_ #-}
 
-assignTFBS :: Monad m
-           => [RegDomain]   -- ^ Regulatory element
-           -> ConduitT BED (Either BED (BED, CI B.ByteString)) m ()
-assignTFBS regions = intersectBedWith f regions .| concatC
+assignTFBS :: [RegDomain]
+           -> ConduitT BED (Either BED (BED, [GeneName])) IO ()
+assignTFBS = intersectBedWith f
   where
-    f tfbs promoters
-        | null promoters = [Left tfbs]
-        | otherwise = zipWith (\a b -> Right (a,  b^._data)) (repeat tfbs) promoters
+    f tfbs xs
+        | null xs = Left tfbs
+        | otherwise = Right (tfbs, nubSort $ map (^._data) xs)
 {-# INLINE assignTFBS #-}
 
 -- | Assign activity to TFBS

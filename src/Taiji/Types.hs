@@ -6,9 +6,7 @@ module Taiji.Types where
 
 import           Bio.Data.Bed
 import           Bio.Pipeline.Instances ()
-import           Control.Lens           (makeLenses)
 import           Data.Aeson
-import IGraph
 import qualified Data.ByteString.Char8  as B
 import           Data.CaseInsensitive   (CI)
 import           Data.Default.Class
@@ -24,8 +22,6 @@ import           GHC.Generics           (Generic)
 
 type Promoter = BEDExt BED3 (CI B.ByteString)
 type RegDomain = BEDExt BED3 (CI B.ByteString)
-
-makeLenses ''SiteInfo
 
 data RankTable = RankTable
     { rowNames    :: V.Vector T.Text
@@ -89,7 +85,7 @@ instance Hashable NetNode where
 data NetEdge = NetEdge
     { weightExpression  :: Maybe Double
     , weightCorrelation :: Maybe Double
-    , sites             :: (Maybe (Double, Int), Maybe (Double, Int), Maybe (Double, Int))
+    , sites             :: Double
     } deriving (Generic, Show, Read)
 
 instance Serialize NetNode
@@ -104,18 +100,3 @@ instance ToJSON RankTable
 
 instance Default (CI B.ByteString) where
     def = ""
-
-instance Graph d => Serialize (LGraph d NetNode NetEdge) where
-    put gr = do
-        put nlabs
-        put es
-        put elabs
-      where
-        nlabs = map (nodeLab gr) $ nodes gr
-        es = edges gr
-        elabs = map (edgeLab gr) es
-    get = do
-        nlabs <- get
-        es <- get
-        elabs <- get
-        return $ mkGraph nlabs $ zip es elabs

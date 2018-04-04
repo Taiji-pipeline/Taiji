@@ -6,7 +6,6 @@
 
 module Taiji.Core.Network where
 
-import           Bio.Data.Bed
 import           Bio.Data.Experiment
 import           Bio.Pipeline.Utils                (asDir, getPath)
 import           Bio.Utils.Functions               (scale)
@@ -23,8 +22,7 @@ import           Data.List                         (transpose)
 import           Data.List.Ordered                 (nubSort)
 import qualified Data.Map.Strict                   as M
 import qualified Data.Matrix.Unboxed               as MU
-import           Data.Maybe                        (fromJust, fromMaybe,
-                                                    mapMaybe)
+import           Data.Maybe                        (fromMaybe, mapMaybe)
 import           Data.Monoid                       ((<>))
 import           Data.Serialize                    (decode, encode)
 import qualified Data.Text                         as T
@@ -37,30 +35,23 @@ import           Taiji.Core.Config                 ()
 import           Taiji.Core.RegulatoryElement
 import           Taiji.Types
 
-computeRanks :: ATACSeq S ( File tag1 'Bed          -- ^ Active promoters
-                          , File tag2 'Bed )        -- ^ TFBS
-             -> File tag3 'NarrowPeak
-             -> File tag4 'NarrowPeak
-             -> Maybe (File '[ChromosomeLoop] 'Bed)  -- ^ HiC loops
-             -> Maybe (File '[] 'Tsv)           -- ^ Expression
+computeRanks :: ( (T.Text, (FilePath, FilePath, FilePath))
+                , Maybe (File '[] 'Tsv) )          -- ^ Expression
              -> WorkflowConfig TaijiConfig (T.Text, File '[] 'Other)
-computeRanks atac activityPro activityEnh hic expr = do
+computeRanks ((grp, links), expr) = do
     dir <- asks (asDir . _taiji_output_dir) >>= getPath . (<> asDir "/Network")
     liftIO $ do
-        network <- mkNetwork . createLinkage <$>
-            findTargets atac activityPro activityEnh hic
-
+        network <- mkNetwork <$> createLinkage links
         gr <- fmap pageRank $ case expr of
             Nothing -> return network
             Just e -> do
                 expr' <- readExpression 1
-                    (B.pack $ T.unpack $ fromJust $ atac^.groupName) $ e^.location
+                    (B.pack $ T.unpack grp ) $ e^.location
                 return $ assignWeights expr' network
-
-        let output = dir ++ "/" ++ T.unpack (fromJust $ atac^.groupName) ++
+        let output = dir ++ "/" ++ T.unpack grp ++
                 "_network.bin"
         B.writeFile output $ encode gr
-        return (fromJust $ atac^.groupName, location .~ output $ emptyFile)
+        return (grp, location .~ output $ emptyFile)
 
 mkNetwork :: [Linkage] -> LGraph D NetNode NetEdge
 mkNetwork links = fromLabeledEdges $ concatMap toEdge links
@@ -176,10 +167,8 @@ showNetwork gr = yieldMany (edges gr) .| mapC fn .| unlinesAsciiC
 -- Transformation functions
 --------------------------------------------------------------------------------
 
-getSiteWeight :: (Maybe (Double, Int), Maybe (Double, Int), Maybe (Double, Int)) -> Double
-getSiteWeight (a,b,c) = maximum [ fromMaybe 0 $ fmap fst a
-                                , fromMaybe 0 $ fmap fst b
-                                , fromMaybe 0 $ fmap fst c ]
+getSiteWeight :: Double -> Double
+getSiteWeight = id
 {-# INLINE getSiteWeight #-}
 
 transform_exp :: Double -> Double

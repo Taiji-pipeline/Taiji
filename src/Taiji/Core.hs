@@ -61,6 +61,6 @@ builder = do
         |] $ note .= "Prepare for parallel execution."
     nodePS 1 "Compute_Ranks" 'computeRanks $ do
         note .= "Perform personalized Pagerank."
-        remoteParam .= "--mem=8000 -p gpu"
+        remoteParam .= "--mem=20000 -p gpu"
     nodeS "Output_Rank" 'outputRank $ return ()
     path ["Compute_Ranks_Prep", "Compute_Ranks", "Output_Rank"]

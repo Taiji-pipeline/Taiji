@@ -9,6 +9,5 @@ import           Taiji.Extra.Functions
 
 builder :: Builder ()
 builder = do
-    nodePS 1 "TF_Module" 'getTFModule $ do
-        note .= ""
+    nodePS 1 "TF_Module" 'getTFModule $ note .= ""
     path ["Compute_Ranks", "TF_Module"]

@@ -1,4 +1,4 @@
-resolver:    lts-11.2
+resolver:    lts-11.3
 
 packages:
 - '.'
@@ -6,7 +6,7 @@ packages:
 extra-deps:
 
 - git:     https://github.com/Taiji-pipeline/Taiji-types.git
-  commit:  558901d26f44bdbffd217b9a73bdbbab56493c62
+  commit:  129a77c6ea8f1202ad2dbd824433565209e55559
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
   commit:  a8cd7f979766c4f2eefed45bde6ac695aec6b80c
@@ -15,7 +15,7 @@ extra-deps:
   commit:  8093bee3480265952b6fb1694bef3498d5182859
 
 - git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
-  commit:  52ff3046e8033cb97c03a1174e19f2a36ebff9ef
+  commit:  43661a44a16ae42f9a0995c8737b00cade2a06f8
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
   commit:  c5e344dfaf285e927461ead818e21c16f18fecb5

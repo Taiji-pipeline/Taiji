@@ -24,7 +24,6 @@ library
                        -- Taiji.Core.Exporter
                        Taiji.Extra
                        Taiji.Extra.Functions
-                       Taiji.Types
 
   build-depends:       base >= 4.7 && < 5
                      , aeson
@@ -32,10 +31,8 @@ library
                      , bio-pipelines
                      , bio-experiments
                      , bioinformatics-toolkit >= 0.5.0
-                     , containers
                      , cereal
-                     , cereal-vector
-                     , cereal-text
+                     , containers
                      , clustering
                      , data-default
                      , double-conversion
@@ -56,10 +53,11 @@ library
                      , SciFlow >= 0.6.1
                      , temporary
                      , text
-                     , Taiji-ATAC-seq
-                     , Taiji-RNA-seq
                      , vector
                      , zlib
+                     , Taiji-ATAC-seq
+                     , Taiji-RNA-seq
+                     , Taiji-types
   default-language:    Haskell2010
 
 executable taiji
@@ -77,6 +75,7 @@ executable taiji
                      , Taiji
                      , Taiji-ATAC-seq
                      , Taiji-RNA-seq
+                     , Taiji-types
   default-language:    Haskell2010
 
 source-repository head

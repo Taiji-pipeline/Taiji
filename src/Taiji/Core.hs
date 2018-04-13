@@ -3,7 +3,7 @@
 module Taiji.Core (builder) where
 
 import           Bio.Data.Experiment
-import           Bio.Data.Experiment.Parser   (readHiC)
+import           Bio.Data.Experiment.Parser   (readHiC, readHiCTSV)
 import           Control.Lens
 import           Control.Monad.IO.Class       (liftIO)
 import           Control.Monad.Reader         (asks)
@@ -26,27 +26,29 @@ builder = do
     nodeS "HiC_Read_Input" [| \_ -> do
         input <- asks _taiji_input
         liftIO $ do
-            hic <- readHiC input "HiC"
+            hic <- if ".tsv" == reverse (take 4 $ reverse input)
+                then readHiCTSV input "HiC"
+                else readHiC input "HiC"
             return $ getHiCLoops hic
         |] $ do
             submitToRemote .= Just False
             note .= "Read HiC loops from input file."
 
-    node' "Find_TF_Target_Prep" [| \(activePro, tfbs, peaks, hic) ->
+    node' "Find_TF_Target_Prep" [| \(activePro, tfbs, hic) ->
         let mkDict xs = M.fromList $ map (\x ->
                 (x^.groupName, head $ x^..replicates.folded.files)) xs
             lookup' x xs = M.lookup (x^.groupName) xs
             tfbs' = mkDict tfbs
             hic' = mkDict hic
-            peaks' = mkDict peaks
         in flip map activePro $ \e ->
             ( e & replicates.mapped.files %~ (\f -> (f, fromJust $ lookup' e tfbs'))
-            , fromJust $ lookup' e peaks'
-            , fromJust $ lookup' e peaks'
             , M.lookup (e^.groupName) hic' )
-        |] $ note .= "Prepare for parallel execution."
+        |] $ do
+            note .= "Prepare for parallel execution."
+            submitToRemote .= Just False
 
-    nodePS 1 "Find_TF_Target" [| \(x1,x2,x3,x4) -> findTargets x1 x2 x3 x4 |] $ do
+    nodePS 1 "Find_TF_Target" [| \(x1,x2) -> findTargets x1 x2 |] $ do
+        remoteParam .= "--mem=30000 -p gpu"
         note .= "Assign TFs to their target genes. We borrow the concept of " <>
                 "gene regulatory domain from GREAT. Gene regulatory domain " <>
                 "definition: Active promoters are used to define the basal " <>
@@ -57,10 +59,21 @@ builder = do
                 "assigned to corresponding genes."
     path ["Find_TF_Target_Prep", "Find_TF_Target"]
 
-    node' "Compute_Ranks_Prep" [| \(links, expr) -> zip links $ repeat expr
-        |] $ note .= "Prepare for parallel execution."
+    node' "Create_Linkage_Prep" [| \(assignment, peaks) ->
+        let es = zipExp (zipExp assignment peaks) peaks
+        in flip map es $ \e -> e & replicates.mapped.files %~ (\((a,b),c) -> (a,b,c))
+        |] $ do
+            note .= "Prepare for parallel execution."
+            submitToRemote .= Just False
+    nodePS 1 "Create_Linkage" 'createLinkage $ return ()
+    path ["Create_Linkage_Prep", "Create_Linkage"]
+
+    node' "Compute_Ranks_Prep" [| \(links, expr) -> zip links $ repeat expr |] $ do
+        note .= "Prepare for parallel execution."
+        submitToRemote .= Just False
     nodePS 1 "Compute_Ranks" 'computeRanks $ do
         note .= "Perform personalized Pagerank."
         remoteParam .= "--mem=20000 -p gpu"
-    nodeS "Output_Rank" 'outputRank $ return ()
-    path ["Compute_Ranks_Prep", "Compute_Ranks", "Output_Rank"]
+    nodeS "Output_Ranks" 'outputRanks $ do
+        remoteParam .= "--mem=20000 -p gpu"
+    path ["Compute_Ranks_Prep", "Compute_Ranks", "Output_Ranks"]

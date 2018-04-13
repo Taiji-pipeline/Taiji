@@ -4,44 +4,43 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
-module Taiji.Core.RegulatoryElement where
---    ( Linkage
---    , getHiCLoops
---    , findActivePromoters
---    , findTargets
---    , createLinkage
- --   ) where
+module Taiji.Core.RegulatoryElement
+    ( Linkage
+    , getHiCLoops
+    , findActivePromoters
+    , findTargets
+    , createLinkage
+    ) where
 
 import           Bio.Data.Bed
 import           Bio.Data.Experiment
 import           Bio.Pipeline.NGS
-import           Bio.Pipeline.Utils                (asDir, getPath)
+import           Bio.Pipeline.Utils      (asDir, getPath)
 import           Bio.RealWorld.GENCODE
-import           Bio.Utils.Misc                    (readDouble, readInt)
+import           Bio.Utils.Misc          (readInt)
 import           Conduit
 import           Control.Lens
-import           Control.Monad.Reader              (asks, forM_, when)
-import qualified Data.ByteString.Char8             as B
-import           Data.CaseInsensitive              (CI, mk, original)
-import           Data.Double.Conversion.ByteString (toShortest)
-import           Data.Either                       (lefts)
-import qualified Data.HashMap.Strict               as M
-import qualified Data.IntervalMap.Strict           as IM
-import           Data.List.Ordered                 (nubSort)
-import           Data.Maybe                        (fromJust, isNothing)
-import           Data.Monoid                       ((<>))
-import           Data.Singletons                   (SingI)
-import qualified Data.Text                         as T
-import qualified Data.Vector                       as V
-import           Scientific.Workflow               hiding (_data)
-import           System.IO
+import           Control.Monad.Reader    (asks)
+import qualified Data.ByteString.Char8   as B
+import           Data.CaseInsensitive    (mk)
+import           Data.Conduit.Cereal     (conduitGet2, conduitPut)
+import           Data.Either             (lefts)
+import           Data.Function           (on)
+import qualified Data.HashMap.Strict     as M
+import qualified Data.IntervalMap.Strict as IM
+import           Data.List               (foldl', groupBy, partition, sortBy)
+import           Data.List.Ordered       (nubSort)
+import           Data.Maybe              (fromJust, isNothing, mapMaybe)
+import           Data.Monoid             ((<>))
+import           Data.Ord
+import           Data.Serialize          (get, put)
+import           Data.Singletons         (SingI)
+import qualified Data.Text               as T
+import qualified Data.Vector             as V
+import           Scientific.Workflow     hiding (_data)
 
-import           Taiji.Core.Config                 ()
+import           Taiji.Core.Config       ()
 import           Taiji.Types
-
--- | Gene and its regulators
-type GeneName = CI B.ByteString
-type Linkage = (GeneName, [(GeneName, Double)])
 
 type HiCWithSomeFile = HiC N [Either SomeFile (SomeFile, SomeFile)]
 
@@ -85,93 +84,56 @@ readPromoters = (fmap . concatMap) fn . readGenes
             | otherwise = geneRight : map snd geneTranscripts
 {-# INLINE readPromoters #-}
 
-createLinkage :: (FilePath, FilePath, FilePath) -> IO [Linkage]
-createLinkage (f1, f2, f3) = fmap
-    (M.toList . fmap (M.toList . M.fromListWith combineFunc)) $
-    createTable f1 M.empty >>= createTable f2 >>= createTable f3
-  where
-    createTable fl x = runResourceT $ runConduit $ sourceFileBS fl .|
-        linesUnboundedAsciiC .| mapC (f . B.split '\t') .| foldlC build x
-    f [a, b, c] = (mk a, (mk b, readDouble c))
-    f _         = error "unexpected input"
-    build m (g, x) = M.alter add g m
-        where
-          add Nothing   = Just [x]
-          add (Just xs) = Just $ x : xs
-
-findTargets :: ATACSeq S ( File tag1 'Bed          -- ^ Active promoters
-                         , File tag2 'Bed )        -- ^ TFBS
-            -> File tag3 'NarrowPeak
-            -> File tag4 'NarrowPeak
-            -> Maybe (File '[ChromosomeLoop] 'Bed)  -- ^ HiC loops
-            -> WorkflowConfig TaijiConfig (T.Text, (FilePath, FilePath, FilePath))
-findTargets atac activityPro activityEnh hic = do
-    dir <- asks (asDir . (<> ("/Network/" <> T.unpack grp)) . _taiji_output_dir)
+createLinkage :: ATACSeq S ( File '[] 'Other
+                           , File tag1 'NarrowPeak
+                           , File tag2 'NarrowPeak )
+              -> WorkflowConfig TaijiConfig (ATACSeq S (File '[] 'Other))
+createLinkage atac = do
+    dir <- asks (asDir . (<> "/Network/" <> T.unpack grp) . _taiji_output_dir)
         >>= getPath
-    let out1 = dir ++ "/TFBS_promoter.tsv"
-        out2 = dir ++ "/TFBS_distal.tsv"
-        out3 = dir ++ "/TFBS_3D.tsv"
-    liftIO $ withFile out1 WriteMode $ \fh1 -> withFile out2 WriteMode $
-        \fh2 -> withFile out3 WriteMode $ \fh3 -> do
-            promoters <- readBed' $ fl_pro^.location
-            let enhancers = getRegulatoryDomains 1000000 promoters
-            distalEhancers <- case hic of
-                Nothing -> return []
-                Just fl -> runResourceT $ runConduit $ read3DContact (fl^.location) .|
-                    getContactingRegions promoters .| sinkList
-            activityPro' <- fmap (bedToTree max . map (\x -> (x, fromJust $ x^.npPvalue))) $
-                readBed' $ activityPro^.location
-            activityEnh' <- fmap (bedToTree max . map (\x -> (x, fromJust $ x^.npPvalue))) $
-                readBed' $ activityEnh^.location
-            runConduit $ readBed (fl_tfbs^.location) .| findTargets_ promoters
-                enhancers distalEhancers activityPro' activityEnh' (fh1, fh2, fh3)
-    return (grp, (out1, out2, out3))
+    let out = dir ++ "/linkages.bin"
+    liftIO $ do
+        activityPro <- fmap (bedToTree max . map (\x -> (x, fromJust $ x^.npPvalue))) $
+            readBed' $ fl_pro^.location
+        activityEnh <- fmap (bedToTree max . map (\x -> (x, fromJust $ x^.npPvalue))) $
+            readBed' $ fl_enh^.location
+        runResourceT $ runConduit $ readLinks (fl_region^.location) activityPro activityEnh .|
+            conduitPut put .| sinkFile out
+    return $ atac & replicates.mapped.files .~ (emptyFile & location .~ out)
   where
-    [(fl_pro, fl_tfbs)] = atac^..replicates.folded.files
-    grp = atac^.groupName._Just
-
-combineFunc :: Double -> Double -> Double
-combineFunc = max
-
-findTargets_ :: [Promoter]
-             -> [RegDomain]
-             -> [RegDomain]
-             -> BEDTree Double   -- ^ promoter activity
-             -> BEDTree Double   -- ^ enhancer activity
-             -> ( Handle -- ^ promtors' sites
-                , Handle -- ^ enhancers' sites
-                , Handle )     -- ^ 3Denhancers' sites
-             -> ConduitT BED o IO ()
-findTargets_ promoters enhancers distalEhancers activityPro activityEnh (fh1,fh2,fh3) =
-    assignTFBS promoters .| concatMapMC (fn fh1 activityPro) .|
-        assignTFBS distalEhancers .| concatMapMC (fn fh3 activityEnh) .|
-        assignTFBS enhancers .| concatMapMC (fn fh2 activityEnh) .| sinkNull
-  where
-    fn _ _ (Left x) = return $ Just x
-    fn hdl act (Right (tfbs, genes)) = case getActivity tfbs act of
-        Nothing -> return Nothing
-        Just v -> do
-            let sc = transform_peak_height v *
-                    transform_site_pvalue (fromJust $ tfbs^.score)
-                output = zip genes $
-                    repeat (head $ B.split '+' $ tfbs^.name._Just, sc)
-            when (sc >= 0.1) $ forM_ output $ \(g, (tf, x)) ->
-                B.hPutStrLn hdl $ B.intercalate "\t" [original g, tf, toShortest x]
-            return Nothing
+    readLinks fl actP actE = sourceFileBS fl .| conduitGet2 get .| mapC f
+      where
+        f (nm, (ps, es)) =
+            ( nm
+            , M.toList $ fmap (mergeTFBS combineFn) $ M.fromListWith (++) $
+                mapMaybe (g actP) ps
+            , M.toList $ fmap (mergeTFBS combineFn) $ M.fromListWith (++) $
+                mapMaybe (g actE) es) :: Linkage
+        g act x = case getActivity x act of
+            Nothing -> Nothing
+            Just v -> Just ( getTFName x,
+                [x & score.mapped %~ (transform_peak_height v *) . transform_site_pvalue] )
+    getTFName x = mk $ head $ B.split '+' $ x^.name._Just
     transform_peak_height x = 1 / (1 + exp (-(x - 5)))
     transform_site_pvalue x' = 1 / (1 + exp (-(x - 5)))
       where
         x = negate $ logBase 10 $ max 1e-20 x'
-{-# INLINE findTargets_ #-}
+    [(fl_region, fl_pro, fl_enh)] = atac^..replicates.folded.files
+    grp = atac^.groupName._Just
 
-assignTFBS :: [RegDomain]
-           -> ConduitT BED (Either BED (BED, [GeneName])) IO ()
-assignTFBS = intersectBedWith f
-  where
-    f tfbs xs
-        | null xs = Left tfbs
-        | otherwise = Right (tfbs, nubSort $ map (^._data) xs)
-{-# INLINE assignTFBS #-}
+combineFn :: [Double] -> Double
+combineFn = maximum
+{-# INLINE combineFn #-}
+
+lp :: Int -> [Double] -> Double
+lp p = (**(1/fromIntegral p)) . foldl' (+) 0 . map (**fromIntegral p)
+{-# INLINE lp #-}
+
+mergeTFBS :: ([Double] -> Double)  -- ^ Combining functin
+          -> [BED] -> Double
+mergeTFBS fn xs = fn $ runIdentity $ runConduit $
+    mergeBedWith (maximum . map (fromJust . (^.score))) xs .| sinkList
+{-# INLINE mergeTFBS #-}
 
 -- | Assign activity to TFBS
 getActivity :: BED -> BEDTree Double -> Maybe Double
@@ -180,17 +142,72 @@ getActivity tfbs beds = case IM.elems (intersecting beds tfbs) of
     xs -> Just $ maximum xs
 {-# INLINE getActivity #-}
 
+findTargets :: ATACSeq S ( File tag1 'Bed          -- ^ Active promoters
+                         , File tag2 'Bed )        -- ^ TFBS
+            -> Maybe (File '[ChromosomeLoop] 'Bed)  -- ^ HiC loops
+            -> WorkflowConfig TaijiConfig (ATACSeq S (File '[] 'Other))
+findTargets atac hic = do
+    dir <- asks (asDir . (<> "/Network/" <> T.unpack grp) . _taiji_output_dir)
+        >>= getPath
+    let out = dir ++ "/TFBS_assignment.bin"
+    liftIO $ do
+        tfbs <- bedToTree (++) . map (\x -> (x, [x])) <$> readBed' (fl_tfbs^.location)
+        promoters <- readBed' $ fl_pro^.location
+        let enhancers2D = getRegulatoryDomains 1000000 promoters
+        enhancers3D <- case hic of
+            Nothing -> return []
+            Just fl -> runResourceT $ runConduit $ read3DContact (fl^.location) .|
+                getContactingRegions promoters .| sinkList
+        let regions = groupRegions $
+                zip (repeat Promoter) (mergeDomains promoters) ++
+                zip (repeat Enhancer) (mergeDomains $ enhancers2D ++ enhancers3D)
+        runResourceT $ runConduit $
+            yieldMany regions .| findTargets_ tfbs .| conduitPut put .|
+            sinkFile out
+    return $ atac & replicates.mapped.files .~ (emptyFile & location .~ out)
+  where
+    [(fl_pro, fl_tfbs)] = atac^..replicates.folded.files
+    grp = atac^.groupName._Just
+    groupRegions = groupBy ((==) `on` ((^._data) . snd)) .
+        sortBy (comparing ((^._data) . snd))
+
+findTargets_ :: Monad m
+             => BEDTree [BED]
+             -> ConduitT [(DomainType, RegDomain)] (GeneName, ([BED], [BED])) m ()
+findTargets_ tfbs = mapC (\xs -> (snd (head xs) ^. _data, split $ concat $ mapMaybe f xs))
+  where
+    split xs = let (a, b) = partition ((==Promoter) . fst) xs
+               in (snd $ unzip a, snd $ unzip b)
+    f (ty, region) = case IM.elems (intersecting tfbs region) of
+        [] -> Nothing
+        xs -> Just $ zip (repeat ty) $ concat xs
+{-# INLINE findTargets_ #-}
+
+-- | Merge 2D and 3D domains
+mergeDomains :: [RegDomain] -> [RegDomain]
+mergeDomains regions = runIdentity $ runConduit $ mergeBedWith f regions .|
+    concatC .| sinkList
+  where
+    f xs = concatMap merge $ groupBy ((==) `on` (^._data)) $
+        sortBy (comparing (^._data)) xs
+    merge xs = let nm = head xs ^._data
+                   beds = runIdentity $ runConduit $ mergeBed xs .| sinkList
+               in map (\x -> x & _data .~ nm) beds
+{-# INLINE mergeDomains #-}
+
 -- | Given a gene list , compute the rulatory domain for each gene
 getRegulatoryDomains :: Int             -- ^ Extension length. A good default is 1M.
                      -> [Promoter] -- ^ A list of promoters
                      -> [RegDomain] -- ^ Regulatory domains
 getRegulatoryDomains ext genes
     | null genes = error "No gene available for domain assignment!"
-    | otherwise = loop $ [Nothing] ++ map Just basal ++ [Nothing]
+    | otherwise = concat $ loop $ [Nothing] ++ map Just basal ++ [Nothing]
   where
     loop (a:b:c:rest) = fn a b c : loop (b:c:rest)
     loop _            = []
-    fn left (Just bed) right = bed & chromStart .~ leftPos & chromEnd .~ rightPos
+    fn left (Just bed) right =
+        [ bed & chromStart .~ leftPos & chromEnd .~ s
+        , bed & chromStart .~ e & chromEnd .~ rightPos ]
       where
         chr = bed^.chrom
         s = bed^.chromStart
@@ -209,10 +226,15 @@ getRegulatoryDomains ext genes
 -- by Tabs corresponding to 2 interacting loci. Example:
 -- chr1 [TAB] 11 [TAB] 100 [TAB] chr2 [TAB] 23 [TAB] 200
 read3DContact :: FilePath -> ConduitT i (BED3, BED3) (ResourceT IO) ()
-read3DContact input = sourceFileBS input .| linesUnboundedAsciiC .| mapC f
+read3DContact input = sourceFileBS input .| linesUnboundedAsciiC .| mapC f .|
+    filterC g
   where
     f x = let (chr1:s1:e1:chr2:s2:e2:_) = B.split '\t' x
           in (asBed chr1 (readInt s1) (readInt e1), asBed chr2 (readInt s2) (readInt e2))
+    g (x1,x2) | x1^.chrom /= x2^.chrom = True
+              | x1^.chromEnd < x2^.chromStart = x2^.chromStart - x1^.chromEnd > 5000
+              | x2^.chromEnd < x1^.chromStart = x1^.chromStart - x2^.chromEnd > 5000
+              | otherwise = False
 {-# INLINE read3DContact #-}
 
 -- | Retrieve regions that contact with the gene's promoter.
@@ -221,7 +243,7 @@ getContactingRegions :: Monad m
                      -> ConduitT (BED3, BED3) RegDomain m ()
 getContactingRegions promoters =
     let basal = bedToTree (++) $ flip map promoters $
-            \pro -> (_ext_bed pro, [_ext_data pro])
+            \pro -> (pro^._bed, [pro^._data])
      in concatMapC $ \(locA, locB) -> map (BEDExt locB) (intersect basal locA) ++
             map (BEDExt locA) (intersect basal locB)
   where

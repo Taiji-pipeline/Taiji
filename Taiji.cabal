@@ -21,7 +21,6 @@ library
                        Taiji.Core.RegulatoryElement
                        Taiji.Core.Network
                        Taiji.Core.Config
-                       -- Taiji.Core.Exporter
                        Taiji.Extra
                        Taiji.Extra.Functions
 
@@ -32,6 +31,7 @@ library
                      , bio-experiments
                      , bioinformatics-toolkit >= 0.5.0
                      , cereal
+                     , cereal-conduit
                      , containers
                      , clustering
                      , data-default

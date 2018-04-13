@@ -10,6 +10,8 @@ import           Bio.Data.Experiment
 import           Bio.Pipeline.Utils                (asDir, getPath)
 import           Bio.Utils.Functions               (scale)
 import           Bio.Utils.Misc                    (readDouble)
+import           Data.Serialize          (get, put)
+import           Data.Conduit.Cereal     (conduitGet2, conduitPut)
 import           Conduit
 import           Control.Lens                      hiding (pre, to)
 import           Control.Monad
@@ -35,13 +37,13 @@ import           Taiji.Core.Config                 ()
 import           Taiji.Core.RegulatoryElement
 import           Taiji.Types
 
-computeRanks :: ( (T.Text, (FilePath, FilePath, FilePath))
+computeRanks :: ( ATACSeq S (File '[] 'Other)
                 , Maybe (File '[] 'Tsv) )          -- ^ Expression
              -> WorkflowConfig TaijiConfig (T.Text, File '[] 'Other)
-computeRanks ((grp, links), expr) = do
+computeRanks (atac, expr) = do
     dir <- asks (asDir . _taiji_output_dir) >>= getPath . (<> asDir "/Network")
     liftIO $ do
-        network <- mkNetwork <$> createLinkage links
+        network <- mkNetwork $ runIdentity (atac^.replicates) ^. files.location
         gr <- fmap pageRank $ case expr of
             Nothing -> return network
             Just e -> do
@@ -52,13 +54,17 @@ computeRanks ((grp, links), expr) = do
                 "_network.bin"
         B.writeFile output $ encode gr
         return (grp, location .~ output $ emptyFile)
-
-mkNetwork :: [Linkage] -> LGraph D NetNode NetEdge
-mkNetwork links = fromLabeledEdges $ concatMap toEdge links
   where
-    toEdge (gene, tfs) = zipWith f (repeat gene) tfs
-    f a b = ( (NetNode a Nothing Nothing Nothing, NetNode (fst b) Nothing Nothing Nothing)
-            , NetEdge Nothing Nothing (snd b) )
+    grp = atac^.groupName._Just
+
+mkNetwork :: FilePath -> IO (LGraph D NetNode NetEdge)
+mkNetwork input = runResourceT $ fromLabeledEdges' input toEdge
+  where
+    toEdge fl = sourceFileBS fl .| conduitGet2 get .| concatMapC f
+      where
+        f (gene, tfs1, tfs2) = zipWith g (repeat gene) $ M.toList $ M.fromListWith max $ tfs1 ++ tfs2
+        g a b = ( (NetNode a Nothing Nothing Nothing, NetNode (fst b) Nothing Nothing Nothing)
+                , NetEdge Nothing Nothing (snd b) )
 {-# INLINE mkNetwork #-}
 
 assignWeights :: M.Map (CI B.ByteString) (Double, Double)   -- ^ Gene expression
@@ -111,15 +117,15 @@ pageRank gr = mapNodes (\i x -> x{pageRankScore=Just $ ranks U.! i}) gr
 {-# INLINE pageRank #-}
 
 
-outputRank :: [(T.Text, File '[] 'Other)]
-           -> WorkflowConfig TaijiConfig FilePath
-outputRank inputs = do
+outputRanks :: [(T.Text, File '[] 'Other)]
+            -> WorkflowConfig TaijiConfig FilePath
+outputRanks inputs = do
     dir <- asks _taiji_output_dir >>= getPath . asDir
     let output = dir ++ "/GeneRanks.tsv"
 
     ranks <- forM inputs $ \(_, fl) -> liftIO $ do
-        gr <- fmap (fromRight undefined . decode) $ B.readFile $
-            fl^.location :: IO (LGraph D NetNode NetEdge)
+        gr <- runResourceT $ runConduit $ sourceFileBS (fl^.location) .|
+            decodeC :: IO (LGraph D NetNode NetEdge)
         return $! M.fromList $ flip mapMaybe (nodes gr) $ \i ->
             if null (pre gr i)
                 then Nothing
@@ -138,30 +144,6 @@ outputRank inputs = do
     return output
   where
     toBS nm xs = B.intercalate "\t" $ nm : map toShortest xs
-
-    {-
-outputNetwork :: (T.Text, File '[] 'Other)
-              -> WorkflowConfig TaijiConfig ()
-outputNetwork (ct, fl) = do
-    let output =
-    gr <- decodeFile $ fl^.location :: IO (LGraph D NetNode NetEdge)
-    showNetwork gr .| sinkFile
-    -}
-
-    {-
-showNetwork :: Monad m
-            => LGraph D NetNode NetEdge
-            -> ConduitT i B.ByteString m ()
-showNetwork gr = yieldMany (edges gr) .| mapC fn .| unlinesAsciiC
-  where
-    fn (fr, to) =
-        let fr_name = original $ nodeName $ nodeLab gr fr
-            to_name = original $ nodeName $ nodeLab gr to
-            f3 = B.intercalate ";" $ map (B.pack . show) sites $ edgeLab gr (fr, to)
-        in B.intercalate "\t" [fr_name, to_name, f3]
-{-# INLINE showNetwork #-}
--}
-
 
 --------------------------------------------------------------------------------
 -- Transformation functions

@@ -12,7 +12,7 @@ extra-deps:
   commit:  812453df33fbc048bf37a5e39cbdd6f4f3ec4dfe
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
-  commit:  4c5d0a290819c0d214e2d5435f8685c58cc2e444
+  commit:  ad9ec54c892ee2942e2314f7982712e18c25ce99
 
 - git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
   commit:  632d6e9a0f96f7ba489fce844af15cae51fb32d2
@@ -20,14 +20,19 @@ extra-deps:
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
   commit:  3d56ead5ea2559046ae4cd015d0c8cfffe1e21e0
 
-- git:     https://github.com/kaizhang/haskell-igraph.git
-  commit:  7014884635c9a3bd98cf2194e15a4bc9238cf93f
+- git:     https://github.com/Taiji-pipeline/Taiji-ChIP-seq.git
+  commit:  93dcc46181011a552087f3ff9faffc374f0699e0
 
-- bioinformatics-toolkit-0.5.0
+- git:     https://github.com/kaizhang/bioinformatics-toolkit.git
+  commit:  54aec84485f32b6e822b050c55de9886edefc7c2
+  subdirs:
+    - bioinformatics-toolkit
+
 - HsHTSLib-1.3.2.3
 - drmaa-0.2.0
 - clustering-0.4.0
 - SciFlow-0.6.1
+- haskell-igraph-0.5.0
 
 - graphviz-2999.19.0.0
 - fgl-5.5.4.0

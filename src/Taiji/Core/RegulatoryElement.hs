@@ -84,20 +84,21 @@ readPromoters = (fmap . concatMap) fn . readGenes
             | otherwise = geneRight : map snd geneTranscripts
 {-# INLINE readPromoters #-}
 
-createLinkage :: ATACSeq S ( File '[] 'Other
-                           , File tag1 'NarrowPeak
-                           , File tag2 'NarrowPeak )
+createLinkage :: ( ATACSeq S (File '[] 'Other)  -- ^ assignments
+                 , Either (File t1 'NarrowPeak) (File t2 'BroadPeak)  -- ^ promoter activity
+                 , Either (File t1 'NarrowPeak) (File t2 'BroadPeak)  -- ^ enhancer activity
+                 )
               -> WorkflowConfig TaijiConfig (ATACSeq S (File '[] 'Other))
-createLinkage atac = do
+createLinkage (atac, pro, enh) = do
     dir <- asks (asDir . (<> "/Network/" <> T.unpack grp) . _taiji_output_dir)
         >>= getPath
     let out = dir ++ "/linkages.bin"
     liftIO $ do
         activityPro <- fmap (bedToTree max . map (\x -> (x, fromJust $ x^.npPvalue))) $
-            readBed' $ fl_pro^.location
+            readBed' fl_pro
         activityEnh <- fmap (bedToTree max . map (\x -> (x, fromJust $ x^.npPvalue))) $
-            readBed' $ fl_enh^.location
-        runResourceT $ runConduit $ readLinks (fl_region^.location) activityPro activityEnh .|
+            readBed' fl_enh
+        runResourceT $ runConduit $ readLinks fl_region activityPro activityEnh .|
             conduitPut put .| sinkFile out
     return $ atac & replicates.mapped.files .~ (emptyFile & location .~ out)
   where
@@ -118,7 +119,9 @@ createLinkage atac = do
     transform_site_pvalue x' = 1 / (1 + exp (-(x - 5)))
       where
         x = negate $ logBase 10 $ max 1e-20 x'
-    [(fl_region, fl_pro, fl_enh)] = atac^..replicates.folded.files
+    fl_pro = either (^.location) (^.location) pro
+    fl_enh = either (^.location) (^.location) enh
+    fl_region = runIdentity (atac^.replicates) ^. files.location
     grp = atac^.groupName._Just
 
 combineFn :: [Double] -> Double

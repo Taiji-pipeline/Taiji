@@ -4,6 +4,7 @@ import           Bio.Pipeline.CallPeaks
 import           Bio.Pipeline.Utils
 import           Control.Lens
 import           Data.Default (def)
+import           Taiji.Pipeline.ChIPSeq.Config (ChIPSeqConfig (..))
 import           Taiji.Pipeline.ATACSeq.Config (ATACSeqConfig (..))
 import           Taiji.Pipeline.RNASeq.Config  (RNASeqConfig (..))
 import           Taiji.Types                   (TaijiConfig (..))
@@ -19,6 +20,15 @@ instance ATACSeqConfig TaijiConfig where
     _atacseq_callpeak_opts _ = def & mode .~ NoModel (-100) 200
                                    & cutoff .~ PValue 0.01
                                    & callSummits .~ True
+
+instance ChIPSeqConfig TaijiConfig where
+    _chipseq_output_dir = asDir . (++ "/ChIPSeq") . _taiji_output_dir
+    _chipseq_input = _taiji_input
+    _chipseq_picard = _taiji_picard
+    _chipseq_bwa_index = fmap (++ "/genome.fa") . _taiji_bwa_index
+    _chipseq_genome_fasta = _taiji_genome
+    _chipseq_genome_index = _taiji_genome_index
+
 
 instance RNASeqConfig TaijiConfig where
     _rnaseq_genome_fasta = _taiji_genome

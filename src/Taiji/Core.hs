@@ -4,9 +4,11 @@ module Taiji.Core (builder) where
 
 import           Bio.Data.Experiment
 import           Bio.Data.Experiment.Parser   (readHiC, readHiCTSV)
+import           Control.Arrow                (second)
 import           Control.Lens
 import           Control.Monad.IO.Class       (liftIO)
 import           Control.Monad.Reader         (asks)
+import           Data.Either                  (either)
 import qualified Data.Map.Strict              as M
 import           Data.Maybe                   (fromJust)
 import           Data.Monoid                  ((<>))
@@ -59,9 +61,16 @@ builder = do
                 "assigned to corresponding genes."
     path ["Find_TF_Target_Prep", "Find_TF_Target"]
 
-    node' "Create_Linkage_Prep" [| \(assignment, peaks) ->
-        let es = zipExp (zipExp assignment peaks) peaks
-        in flip map es $ \e -> e & replicates.mapped.files %~ (\((a,b),c) -> (a,b,c))
+    node' "Create_Linkage_Prep" [| \(assignment, atac_peaks, chip_peaks) ->
+        let getFile x = (x^.groupName._Just, runIdentity (x^.replicates) ^. files)
+            atacFileMap = fmap Left $ M.fromList $ map getFile atac_peaks
+            chipFileMap = M.fromList $
+                map (either (second Left . getFile) (second Right . getFile)) chip_peaks
+        in flip map assignment $ \e ->
+            let grp = e^.groupName._Just
+                pro = M.findWithDefault undefined grp atacFileMap
+                enh = M.findWithDefault pro grp chipFileMap
+            in (e, pro, enh)
         |] $ do
             note .= "Prepare for parallel execution."
             submitToRemote .= Just False

@@ -10,8 +10,8 @@ import           Bio.Data.Experiment
 import           Bio.Pipeline.Utils                (asDir, getPath)
 import           Bio.Utils.Functions               (scale)
 import           Bio.Utils.Misc                    (readDouble)
-import           Data.Serialize          (get, put)
-import           Data.Conduit.Cereal     (conduitGet2, conduitPut)
+import           Data.Serialize          (get)
+import           Data.Conduit.Cereal     (conduitGet2)
 import           Conduit
 import           Control.Lens                      hiding (pre, to)
 import           Control.Monad
@@ -19,14 +19,13 @@ import           Control.Monad.Reader              (asks)
 import qualified Data.ByteString.Char8             as B
 import           Data.CaseInsensitive              (CI, mk, original)
 import           Data.Double.Conversion.ByteString (toShortest)
-import           Data.Either                       (fromRight)
 import           Data.List                         (transpose)
 import           Data.List.Ordered                 (nubSort)
 import qualified Data.Map.Strict                   as M
 import qualified Data.Matrix.Unboxed               as MU
 import           Data.Maybe                        (fromMaybe, mapMaybe)
 import           Data.Monoid                       ((<>))
-import           Data.Serialize                    (decode, encode)
+import           Data.Serialize                    (encode)
 import qualified Data.Text                         as T
 import qualified Data.Vector.Unboxed               as U
 import           IGraph
@@ -34,7 +33,6 @@ import           IGraph.Structure                  (personalizedPagerank)
 import           Scientific.Workflow               hiding (_data)
 
 import           Taiji.Core.Config                 ()
-import           Taiji.Core.RegulatoryElement
 import           Taiji.Types
 
 computeRanks :: ( ATACSeq S (File '[] 'Other)
@@ -70,13 +68,13 @@ mkNetwork input = runResourceT $ fromLabeledEdges' input toEdge
 assignWeights :: M.Map (CI B.ByteString) (Double, Double)   -- ^ Gene expression
               -> LGraph D NetNode NetEdge
               -> LGraph D NetNode NetEdge
-assignWeights weights gr = mapEdges assignEdgeWeight $
-    mapNodes assignNodeWeight gr
+assignWeights weights gr = emap assignEdgeWeight $
+    nmap assignNodeWeight gr
   where
-    assignNodeWeight _ x =
+    assignNodeWeight (_, x) =
         let (raw, scaled) = M.findWithDefault (0.1, -10) (nodeName x) weights
         in x{nodeExpression=Just raw, nodeScaledExpression=Just scaled}
-    assignEdgeWeight (_, to) x =
+    assignEdgeWeight ((_, to), x) =
         let e = M.findWithDefault (0.1, -10) (nodeName $ nodeLab gr to) weights
         in x{weightExpression=Just $ fst e}
 {-# INLINE assignWeights #-}
@@ -105,7 +103,7 @@ readExpression cutoff ct fl = do
 
 pageRank :: LGraph D NetNode NetEdge
          -> LGraph D NetNode NetEdge
-pageRank gr = mapNodes (\i x -> x{pageRankScore=Just $ ranks U.! i}) gr
+pageRank gr = nmap (\(i, x) -> x{pageRankScore=Just $ ranks U.! i}) gr
   where
     labs = map (nodeLab gr) $ nodes gr
     nodeWeights = map (transform_node_weight . fromMaybe (-10) .

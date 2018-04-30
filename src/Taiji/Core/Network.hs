@@ -10,22 +10,22 @@ import           Bio.Data.Experiment
 import           Bio.Pipeline.Utils                (asDir, getPath)
 import           Bio.Utils.Functions               (scale)
 import           Bio.Utils.Misc                    (readDouble)
-import           Data.Serialize          (get)
-import           Data.Conduit.Cereal     (conduitGet2)
 import           Conduit
 import           Control.Lens                      hiding (pre, to)
 import           Control.Monad
 import           Control.Monad.Reader              (asks)
 import qualified Data.ByteString.Char8             as B
 import           Data.CaseInsensitive              (CI, mk, original)
+import           Data.Conduit.Cereal               (conduitGet2)
 import           Data.Double.Conversion.ByteString (toShortest)
+import           Data.Either                       (fromRight)
 import           Data.List                         (transpose)
 import           Data.List.Ordered                 (nubSort)
 import qualified Data.Map.Strict                   as M
 import qualified Data.Matrix.Unboxed               as MU
 import           Data.Maybe                        (fromMaybe, mapMaybe)
 import           Data.Monoid                       ((<>))
-import           Data.Serialize                    (encode)
+import           Data.Serialize                    (decode, encode, get)
 import qualified Data.Text                         as T
 import qualified Data.Vector.Unboxed               as U
 import           IGraph
@@ -55,7 +55,7 @@ computeRanks (atac, expr) = do
   where
     grp = atac^.groupName._Just
 
-mkNetwork :: FilePath -> IO (LGraph D NetNode NetEdge)
+mkNetwork :: FilePath -> IO (Graph 'D NetNode NetEdge)
 mkNetwork input = runResourceT $ fromLabeledEdges' input toEdge
   where
     toEdge fl = sourceFileBS fl .| conduitGet2 get .| concatMapC f
@@ -66,8 +66,8 @@ mkNetwork input = runResourceT $ fromLabeledEdges' input toEdge
 {-# INLINE mkNetwork #-}
 
 assignWeights :: M.Map (CI B.ByteString) (Double, Double)   -- ^ Gene expression
-              -> LGraph D NetNode NetEdge
-              -> LGraph D NetNode NetEdge
+              -> Graph 'D NetNode NetEdge
+              -> Graph 'D NetNode NetEdge
 assignWeights weights gr = emap assignEdgeWeight $
     nmap assignNodeWeight gr
   where
@@ -101,8 +101,8 @@ readExpression cutoff ct fl = do
         | otherwise = scale xs
 {-# INLINE readExpression #-}
 
-pageRank :: LGraph D NetNode NetEdge
-         -> LGraph D NetNode NetEdge
+pageRank :: Graph 'D NetNode NetEdge
+         -> Graph 'D NetNode NetEdge
 pageRank gr = nmap (\(i, x) -> x{pageRankScore=Just $ ranks U.! i}) gr
   where
     labs = map (nodeLab gr) $ nodes gr
@@ -122,8 +122,8 @@ outputRanks inputs = do
     let output = dir ++ "/GeneRanks.tsv"
 
     ranks <- forM inputs $ \(_, fl) -> liftIO $ do
-        gr <- runResourceT $ runConduit $ sourceFileBS (fl^.location) .|
-            decodeC :: IO (LGraph D NetNode NetEdge)
+        gr <- fmap (fromRight (error "decode fail") . decode) $
+            B.readFile $ fl^.location :: IO (Graph 'D NetNode NetEdge)
         return $! M.fromList $ flip mapMaybe (nodes gr) $ \i ->
             if null (pre gr i)
                 then Nothing

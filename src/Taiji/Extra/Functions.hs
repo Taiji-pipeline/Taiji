@@ -9,13 +9,15 @@ module Taiji.Extra.Functions
 import           AI.Clustering.Hierarchical
 import           Bio.Data.Experiment
 import           Bio.Pipeline.Utils          (asDir, getPath)
-import           Conduit
 import           Control.Lens                ((^.))
 import           Control.Monad
 import           Control.Monad.Reader        (asks, liftIO)
+import qualified Data.ByteString             as B
+import           Data.Either                 (fromRight)
 import           Data.Function               (on)
 import           Data.Maybe
 import           Data.Monoid                 ((<>))
+import           Data.Serialize              (decode)
 import qualified Data.Text                   as T
 import qualified Data.Vector                 as V
 import qualified Data.Vector.Unboxed         as U
@@ -32,15 +34,15 @@ getTFModule :: (T.Text, File '[] 'Other)
 getTFModule (grp, fl) = do
     dir <- asks (asDir . _taiji_output_dir) >>= getPath . (<> asDir "/Network")
     liftIO $ do
-        gr <- runResourceT $ runConduit $ sourceFileBS (fl^.location) .|
-            decodeC :: IO (LGraph D NetNode NetEdge)
+        gr <- fmap (fromRight (error "decode fail") . decode) $
+            B.readFile $ fl^.location :: IO (Graph 'D NetNode NetEdge)
         return (grp, tfModule $ tfProfile gr)
 
 tfModule :: [(GeneName, U.Vector Double)] -> String
 tfModule xs = drawDendrogram $ fmap (show . fst) $ hclust Ward (V.fromList xs) (euclidean `on` snd)
 
 -- | TF's regulatees
-tfProfile :: LGraph D NetNode NetEdge
+tfProfile :: Graph 'D NetNode NetEdge
           -> [(GeneName, U.Vector Double)]
 tfProfile gr = mapMaybe fn $ nodes gr
   where

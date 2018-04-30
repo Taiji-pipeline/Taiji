@@ -125,7 +125,7 @@ createLinkage (atac, pro, enh) = do
     grp = atac^.groupName._Just
 
 combineFn :: [Double] -> Double
-combineFn = maximum
+combineFn = lp 2
 {-# INLINE combineFn #-}
 
 lp :: Int -> [Double] -> Double

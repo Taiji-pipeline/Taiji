@@ -60,7 +60,7 @@ mkNetwork input = runResourceT $ fromLabeledEdges' input toEdge
   where
     toEdge fl = sourceFileBS fl .| conduitGet2 get .| concatMapC f
       where
-        f (gene, tfs1, tfs2) = zipWith g (repeat gene) $ M.toList $ M.fromListWith max $ tfs1 ++ tfs2
+        f (gene, tfs1, tfs2) = zipWith g (repeat gene) $ M.toList $ M.fromListWith (+) $ tfs1 ++ tfs2
         g a b = ( (NetNode a Nothing Nothing Nothing, NetNode (fst b) Nothing Nothing Nothing)
                 , NetEdge Nothing Nothing (snd b) )
 {-# INLINE mkNetwork #-}

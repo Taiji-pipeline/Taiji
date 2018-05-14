@@ -6,7 +6,7 @@ import           Control.Lens
 import           Data.Default (def)
 import           Taiji.Pipeline.ChIPSeq.Config (ChIPSeqConfig (..))
 import           Taiji.Pipeline.ATACSeq.Config (ATACSeqConfig (..))
-import           Taiji.Pipeline.RNASeq.Config  (RNASeqConfig (..))
+import           Taiji.Pipeline.RNASeq.Classic.Config  (RNASeqConfig (..))
 import           Taiji.Types                   (TaijiConfig (..))
 
 instance ATACSeqConfig TaijiConfig where

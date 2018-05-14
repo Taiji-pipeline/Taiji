@@ -29,7 +29,7 @@ import           Data.Serialize                    (decode, encode, get)
 import qualified Data.Text                         as T
 import qualified Data.Vector.Unboxed               as U
 import           IGraph
-import           IGraph.Structure                  (personalizedPagerank)
+import           IGraph.Algorithms (pagerank)
 import           Scientific.Workflow               hiding (_data)
 
 import           Taiji.Core.Config                 ()
@@ -109,7 +109,7 @@ pageRank gr = nmap (\(i, x) -> x{pageRankScore=Just $ ranks U.! i}) gr
     nodeWeights = map (transform_node_weight . fromMaybe (-10) .
         nodeScaledExpression) labs
     edgeWeights = map (combine . edgeLab gr) $ edges gr
-    ranks = U.fromList $ personalizedPagerank gr nodeWeights (Just edgeWeights) 0.85
+    ranks = U.fromList $ pagerank gr (Just nodeWeights) (Just edgeWeights) 0.85
     combine NetEdge{..} = transform_exp (fromMaybe 1 weightExpression) *
         getSiteWeight sites
 {-# INLINE pageRank #-}

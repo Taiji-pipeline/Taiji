@@ -12,7 +12,7 @@ import qualified Taiji.Core             as Core
 import qualified Taiji.Extra            as Extra
 import qualified Taiji.Pipeline.ATACSeq as ATACSeq
 import qualified Taiji.Pipeline.ChIPSeq as ChIPSeq
-import qualified Taiji.Pipeline.RNASeq  as RNASeq
+import qualified Taiji.Pipeline.RNASeq.Classic  as RNASeq
 import           Taiji.Types            (TaijiConfig)
 
 mainWith defaultMainOpts

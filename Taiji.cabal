@@ -42,7 +42,7 @@ library
                      , conduit
                      , data-default-class
                      , data-ordlist
-                     , haskell-igraph >= 0.6.0
+                     , haskell-igraph >= 0.7.0
                      , hashable
                      , IntervalMap
                      , lens
@@ -50,7 +50,7 @@ library
                      , mtl
                      , singletons
                      , statistics >= 0.14.0
-                     , SciFlow >= 0.6.1
+                     , SciFlow >= 0.6.2
                      , temporary
                      , text
                      , vector

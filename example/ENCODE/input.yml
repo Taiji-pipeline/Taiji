@@ -16,7 +16,7 @@ ATAC-Seq:
     - rep: 1
       files:
       - path: ENCFF858PLS
-        tags: [ENCODE, Pairend]
+        tags: ["ENCODE", "PairedEnd"]
 
 RNA-Seq:
   - group: 'heart_left_ventricle'

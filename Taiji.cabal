@@ -16,6 +16,7 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   ghc-options:         -Wall
+                       -fno-warn-unticked-promoted-constructors
 
   exposed-modules:     Taiji.Core
                        Taiji.Core.RegulatoryElement

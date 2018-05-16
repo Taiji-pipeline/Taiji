@@ -8,7 +8,7 @@ module Taiji.Extra.Functions
 
 import           AI.Clustering.Hierarchical
 import           Bio.Data.Experiment
-import           Bio.Pipeline.Utils          (asDir, getPath)
+import           Bio.Pipeline.Utils          (getPath)
 import           Control.Lens                ((^.))
 import           Control.Monad
 import           Control.Monad.Reader        (asks, liftIO)
@@ -32,7 +32,7 @@ import           Taiji.Types
 getTFModule :: (T.Text, File '[] 'Other)
             -> WorkflowConfig TaijiConfig (T.Text, String)
 getTFModule (grp, fl) = do
-    dir <- asks (asDir . _taiji_output_dir) >>= getPath . (<> asDir "/Network")
+    dir <- asks ((<> "/Network") . _taiji_output_dir) >>= getPath
     liftIO $ do
         gr <- fmap (fromRight (error "decode fail") . decode) $
             B.readFile $ fl^.location :: IO (Graph 'D NetNode NetEdge)

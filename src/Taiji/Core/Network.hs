@@ -7,7 +7,7 @@
 module Taiji.Core.Network where
 
 import           Bio.Data.Experiment
-import           Bio.Pipeline.Utils                (asDir, getPath)
+import           Bio.Pipeline.Utils                (getPath)
 import           Bio.Utils.Functions               (scale)
 import           Bio.Utils.Misc                    (readDouble)
 import           Conduit
@@ -39,7 +39,7 @@ computeRanks :: ( ATACSeq S (File '[] 'Other)
                 , Maybe (File '[] 'Tsv) )          -- ^ Expression
              -> WorkflowConfig TaijiConfig (T.Text, File '[] 'Other)
 computeRanks (atac, expr) = do
-    dir <- asks (asDir . _taiji_output_dir) >>= getPath . (<> asDir "/Network")
+    dir <- asks ((<> "/Network") . _taiji_output_dir) >>= getPath
     liftIO $ do
         network <- mkNetwork $ runIdentity (atac^.replicates) ^. files.location
         gr <- fmap pageRank $ case expr of
@@ -118,7 +118,7 @@ pageRank gr = nmap (\(i, x) -> x{pageRankScore=Just $ ranks U.! i}) gr
 outputRanks :: [(T.Text, File '[] 'Other)]
             -> WorkflowConfig TaijiConfig FilePath
 outputRanks inputs = do
-    dir <- asks _taiji_output_dir >>= getPath . asDir
+    dir <- asks _taiji_output_dir >>= getPath
     let output = dir ++ "/GeneRanks.tsv"
 
     ranks <- forM inputs $ \(_, fl) -> liftIO $ do

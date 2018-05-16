@@ -56,7 +56,7 @@ findActivePromoters :: SingI tags
                     -> WorkflowConfig TaijiConfig (ATACSeq S (File tags 'Bed))
 findActivePromoters input = do
     anno <- fromJust <$> asks _taiji_annotation
-    dir <- asks (asDir . _taiji_output_dir) >>= getPath
+    dir <- asks _taiji_output_dir >>= getPath
     let fun output fl = liftIO $ do
             peaks <- readBed' $ fl^.location :: IO [BED3]
             pro <- readPromoters anno
@@ -90,8 +90,7 @@ createLinkage :: ( ATACSeq S (File '[] 'Other)  -- ^ assignments
                  )
               -> WorkflowConfig TaijiConfig (ATACSeq S (File '[] 'Other))
 createLinkage (atac, pro, enh) = do
-    dir <- asks (asDir . (<> "/Network/" <> T.unpack grp) . _taiji_output_dir)
-        >>= getPath
+    dir <- asks ((<> "/Network/" <> asDir (T.unpack grp)) . _taiji_output_dir) >>= getPath
     let out = dir ++ "/linkages.bin"
     liftIO $ do
         activityPro <- fmap (bedToTree max . map (\x -> (x, fromJust $ x^.npPvalue))) $
@@ -150,8 +149,7 @@ findTargets :: ATACSeq S ( File tag1 'Bed          -- ^ Active promoters
             -> Maybe (File '[ChromosomeLoop] 'Bed)  -- ^ HiC loops
             -> WorkflowConfig TaijiConfig (ATACSeq S (File '[] 'Other))
 findTargets atac hic = do
-    dir <- asks (asDir . (<> "/Network/" <> T.unpack grp) . _taiji_output_dir)
-        >>= getPath
+    dir <- asks ((<> "/Network/" <> asDir (T.unpack grp)) . _taiji_output_dir) >>= getPath
     let out = dir ++ "/TFBS_assignment.bin"
     liftIO $ do
         tfbs <- bedToTree (++) . map (\x -> (x, [x])) <$> readBed' (fl_tfbs^.location)
@@ -177,10 +175,11 @@ findTargets atac hic = do
 findTargets_ :: Monad m
              => BEDTree [BED]
              -> ConduitT [(DomainType, RegDomain)] (GeneName, ([BED], [BED])) m ()
-findTargets_ tfbs = mapC (\xs -> (snd (head xs) ^. _data, split $ concat $ mapMaybe f xs))
+findTargets_ tfbs = mapC ( \xs ->
+    (snd (head xs) ^. _data, divide $ concat $ mapMaybe f xs) )
   where
-    split xs = let (a, b) = partition ((==Promoter) . fst) xs
-               in (snd $ unzip a, snd $ unzip b)
+    divide xs = let (a, b) = partition ((==Promoter) . fst) xs
+                in (snd $ unzip a, snd $ unzip b)
     f (ty, region) = case IM.elems (intersecting tfbs region) of
         [] -> Nothing
         xs -> Just $ zip (repeat ty) $ concat xs
@@ -191,11 +190,12 @@ mergeDomains :: [RegDomain] -> [RegDomain]
 mergeDomains regions = runIdentity $ runConduit $ mergeBedWith f regions .|
     concatC .| sinkList
   where
-    f xs = concatMap merge $ groupBy ((==) `on` (^._data)) $
+    f xs = concatMap mergeFn $ groupBy ((==) `on` (^._data)) $
         sortBy (comparing (^._data)) xs
-    merge xs = let nm = head xs ^._data
-                   beds = runIdentity $ runConduit $ mergeBed xs .| sinkList
-               in map (\x -> x & _data .~ nm) beds
+    mergeFn xs =
+        let nm = head xs ^._data
+            beds = runIdentity $ runConduit $ mergeBed xs .| sinkList
+        in map (\x -> x & _data .~ nm) beds
 {-# INLINE mergeDomains #-}
 
 -- | Given a gene list , compute the rulatory domain for each gene

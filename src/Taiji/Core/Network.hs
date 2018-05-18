@@ -98,6 +98,9 @@ readExpression cutoff ct fl = do
     pseudoCount = 0.1
     computeZscore xs
         | U.all (<cutoff) xs || U.all (== U.head xs) xs = U.replicate (U.length xs) (-10)
+        | U.length xs == 1 = U.map log xs
+        | U.length xs == 2 = let fc = log $ U.head xs / U.last xs
+                             in U.fromList [fc, negate fc]
         | otherwise = scale xs
 {-# INLINE readExpression #-}
 
@@ -110,7 +113,7 @@ pageRank gr = nmap (\(i, x) -> x{pageRankScore=Just $ ranks U.! i}) gr
         nodeScaledExpression) labs
     edgeWeights = map (combine . edgeLab gr) $ edges gr
     ranks = U.fromList $ pagerank gr (Just nodeWeights) (Just edgeWeights) 0.85
-    combine NetEdge{..} = transform_exp (fromMaybe 1 weightExpression) *
+    combine NetEdge{..} = transform_exp (fromMaybe 0.1 weightExpression) *
         getSiteWeight sites
 {-# INLINE pageRank #-}
 

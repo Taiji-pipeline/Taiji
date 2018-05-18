@@ -97,10 +97,11 @@ readExpression cutoff ct fl = do
   where
     pseudoCount = 0.1
     computeZscore xs
-        | U.all (<cutoff) xs || U.all (== U.head xs) xs = U.replicate (U.length xs) (-10)
         | U.length xs == 1 = U.map log xs
+        | U.all (<cutoff) xs = U.replicate (U.length xs) (-10)
         | U.length xs == 2 = let fc = log $ U.head xs / U.last xs
                              in U.fromList [fc, negate fc]
+        | U.all (== U.head xs) xs = U.replicate (U.length xs) 0
         | otherwise = scale xs
 {-# INLINE readExpression #-}
 

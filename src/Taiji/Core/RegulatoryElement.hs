@@ -14,7 +14,6 @@ module Taiji.Core.RegulatoryElement
 
 import           Bio.Data.Bed
 import           Bio.Data.Experiment
-import           Bio.Pipeline.NGS
 import           Bio.Pipeline.Utils      (asDir, getPath)
 import           Bio.RealWorld.GENCODE
 import           Bio.Utils.Misc          (readInt)
@@ -38,6 +37,7 @@ import           Data.Singletons         (SingI)
 import qualified Data.Text               as T
 import qualified Data.Vector             as V
 import           Scientific.Workflow     hiding (_data)
+import           Text.Printf             (printf)
 
 import           Taiji.Core.Config       ()
 import           Taiji.Types
@@ -56,13 +56,15 @@ findActivePromoters :: SingI tags
                     -> WorkflowConfig TaijiConfig (ATACSeq S (File tags 'Bed))
 findActivePromoters input = do
     anno <- fromJust <$> asks _taiji_annotation
-    dir <- asks _taiji_output_dir >>= getPath
-    let fun output fl = liftIO $ do
-            peaks <- readBed' $ fl^.location :: IO [BED3]
-            pro <- readPromoters anno
-            writeBed' output $ findActivePromoters_ peaks pro
-            return $ location .~ output $ emptyFile
-    mapFileWithDefName (dir ++ "/") "_active_promoters.bed" fun input
+    dir <- asks ((<> "/Promoters") . _taiji_output_dir) >>= getPath
+    let output = printf "%s/%s_rep%d_active_promoters.bed" dir
+            (T.unpack $ input^.eid) (input^.replicates._1)
+    input & replicates.traverse.files %%~ liftIO . ( \fl -> do
+        peaks <- readBed' $ fl^.location :: IO [BED3]
+        pro <- readPromoters anno
+        writeBed' output $ findActivePromoters_ peaks pro
+        return $ location .~ output $ emptyFile
+        )
 
 findActivePromoters_ :: BEDLike b
                      => [b]        -- ^ Promoter activity indicator
@@ -120,7 +122,7 @@ createLinkage (atac, pro, enh) = do
         x = negate $ logBase 10 $ max 1e-20 x'
     fl_pro = either (^.location) (^.location) pro
     fl_enh = either (^.location) (^.location) enh
-    fl_region = runIdentity (atac^.replicates) ^. files.location
+    fl_region = atac^.replicates._2.files.location
     grp = atac^.groupName._Just
 
 combineFn :: [Double] -> Double

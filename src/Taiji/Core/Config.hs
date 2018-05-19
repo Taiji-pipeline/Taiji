@@ -2,7 +2,6 @@
 module Taiji.Core.Config where
 
 import           Bio.Pipeline.CallPeaks
-import           Bio.Pipeline.Utils
 import           Control.Lens
 import           Data.Default                         (def)
 import           Data.Monoid                          ((<>))

@@ -41,7 +41,7 @@ computeRanks :: ( ATACSeq S (File '[] 'Other)
 computeRanks (atac, expr) = do
     dir <- asks ((<> "/Network") . _taiji_output_dir) >>= getPath
     liftIO $ do
-        network <- mkNetwork $ runIdentity (atac^.replicates) ^. files.location
+        network <- mkNetwork $ atac^.replicates._2.files.location
         gr <- fmap pageRank $ case expr of
             Nothing -> return network
             Just e -> do

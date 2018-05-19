@@ -9,19 +9,19 @@ extra-deps:
   commit:  e4f5af754038732a57fcfa6bec67886843aa5afa
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
-  commit:  257a1dfe5e7a973f87252bb20074f482022db05f
+  commit:  f582814c9151cba26ebe73ef685c68e8de115d6a
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
-  commit:  e2ad377101e178c2ff59592c3eea3a696859f61f
+  commit:  8d9deaef85b0311d3fe58f3b4cf21efe5e5bf151
 
 - git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
-  commit:  985a4195471e0a3808b63a1fb92efaa6f352c5ef
+  commit:  2a858817f26d7160da8d9b8c4a83f4b833d324c7
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  8d8fa5c92cb6e50b4b4150b5dd6f4838f0de0f0f
+  commit:  615af28de48b5959bdb7113a6f08d1397210c33e
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ChIP-seq.git
-  commit:  93dcc46181011a552087f3ff9faffc374f0699e0
+  commit:  ad5cd2364c4f434e270b86ce004153ec17106d21
 
 - git:     https://github.com/kaizhang/bioinformatics-toolkit.git
   commit:  54aec84485f32b6e822b050c55de9886edefc7c2

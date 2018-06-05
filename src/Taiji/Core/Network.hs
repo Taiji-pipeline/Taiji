@@ -109,12 +109,9 @@ pageRank :: Graph 'D NetNode NetEdge
          -> Graph 'D NetNode NetEdge
 pageRank gr = nmap (\(i, x) -> x{pageRankScore=Just $ ranks U.! i}) gr
   where
-    labs = map (nodeLab gr) $ nodes gr
-    nodeWeights = map (transform_node_weight . fromMaybe (-10) .
-        nodeScaledExpression) labs
-    edgeWeights = map (combine . edgeLab gr) $ edges gr
-    ranks = U.fromList $ pagerank gr (Just nodeWeights) (Just edgeWeights) 0.85
-    combine NetEdge{..} = transform_exp (fromMaybe 0.1 weightExpression) *
+    ranks = U.fromList $ pagerank gr 0.85 (Just getNodeW) (Just getEdgeW)
+    getNodeW = transform_node_weight . fromMaybe (-10) . nodeScaledExpression
+    getEdgeW NetEdge{..} = transform_exp (fromMaybe 0.1 weightExpression) *
         getSiteWeight sites
 {-# INLINE pageRank #-}
 

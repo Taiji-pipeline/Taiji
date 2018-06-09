@@ -1,0 +1,29 @@
+version: 2
+
+dependencies:
+  pre:
+    - mkdir ~/.stack
+  cache_directories:
+    - "~/.stack"
+
+jobs:
+  build:
+    docker:
+      - image: kaizhang/haskell-stack
+    steps:
+      - run:
+          name: Swap
+          command: |
+            sudo mkdir -v /var/cache/swap
+            cd /var/cache/swap
+            sudo dd if=/dev/zero of=swapfile bs=1K count=4M
+            sudo chmod 600 swapfile
+            sudo mkswap swapfile
+            sudo swapon swapfile
+      - checkout
+      - run:
+          name: Install
+          command: |
+            stack build
+            mv `stack path --local-install-root`/bin/taiji taiji-Linux-x86_64-static
+          timeout: 1800

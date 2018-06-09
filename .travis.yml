@@ -1,0 +1,31 @@
+language:        c
+
+os:
+  - linux
+
+sudo: required
+
+cache:
+  directories:
+    - $HOME/.stack
+
+services:
+  - docker
+
+deploy:
+  provider:      releases
+  skip_cleanup: true
+  api_key: $GITHUB_TOKEN
+  file:          taiji-Linux-x86_64
+  on:
+    tags: true
+
+before_install:
+  - docker pull kaizhang/haskell-stack
+
+script:
+  - docker run -v `pwd`:/build:rw
+    -v $HOME/.stack:/root/.stack:rw
+    kaizhang/haskell-stack
+    /bin/bash -c
+    "cd build && stack build --allow-different-user && mv \`stack path --allow-different-user --local-install-root\`/bin/taiji taiji-Linux-x86_64"

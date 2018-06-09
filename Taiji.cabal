@@ -55,6 +55,7 @@ library
                      , temporary
                      , text
                      , vector
+                     , vector-algorithms
                      , zlib
                      , Taiji-ChIP-seq
                      , Taiji-ATAC-seq

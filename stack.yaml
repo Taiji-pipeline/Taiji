@@ -6,7 +6,7 @@ packages:
 extra-deps:
 
 - git:     https://github.com/Taiji-pipeline/Taiji-types.git
-  commit:  fb8e5f5d98817531f5508cfc9f71a276f5d4fad0
+  commit:  a4a5b54c202e3e8c7d44e27cdb9ba1d1c635358d
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
   commit:  9aa46fbad740dda0469a86e819e7f3640c0ab22a
@@ -18,7 +18,7 @@ extra-deps:
   commit:  2a858817f26d7160da8d9b8c4a83f4b833d324c7
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  615af28de48b5959bdb7113a6f08d1397210c33e
+  commit:  74be946df79599e5c89517d0859b35499403211d
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ChIP-seq.git
   commit:  ad5cd2364c4f434e270b86ce004153ec17106d21
@@ -29,7 +29,7 @@ extra-deps:
     - bioinformatics-toolkit
 
 - git:     https://github.com/kaizhang/haskell-igraph.git
-  commit:  1987cba3319db7749391dbc40131e56452e4c150
+  commit:  d8d7f6b0a315b20a00fdd3494bb3601316b5baa5
 
 - HsHTSLib-1.3.2.3
 - drmaa-0.2.0

@@ -8,7 +8,6 @@ module Taiji.Core.RegulatoryElement
     ( Linkage
     , getHiCLoops
     , findActivePromoters
-    , findTargets
     , createLinkage
     ) where
 
@@ -16,23 +15,27 @@ import           Bio.Data.Bed
 import           Bio.Data.Experiment
 import           Bio.Pipeline.Utils      (asDir, getPath)
 import           Bio.RealWorld.GENCODE
-import           Bio.Utils.Misc          (readInt)
+import           Bio.Utils.Misc          (readInt, readDouble)
+import           Bio.Utils.Functions               (scale)
 import           Conduit
 import           Control.Lens
 import           Control.Monad.Reader    (asks)
 import qualified Data.ByteString.Char8   as B
 import           Data.CaseInsensitive    (mk)
-import           Data.Conduit.Cereal     (conduitGet2, conduitPut)
 import           Data.Either             (lefts)
 import           Data.Function           (on)
-import qualified Data.HashMap.Strict     as M
+import qualified Data.Map.Strict     as M
+import qualified Data.Vector.Unboxed as U
+import qualified Data.Matrix.Unboxed               as MU
+import qualified Data.Set as S
 import qualified Data.IntervalMap.Strict as IM
-import           Data.List               (foldl', groupBy, partition, sortBy)
+import System.IO
+import Control.Monad.State.Strict
+import           Data.List               
 import           Data.List.Ordered       (nubSort)
-import           Data.Maybe              (fromJust, isNothing, mapMaybe)
+import           Data.Maybe              (fromJust, isNothing, mapMaybe, fromMaybe)
 import           Data.Monoid             ((<>))
 import           Data.Ord
-import           Data.Serialize          (get, put)
 import           Data.Singletons         (SingI)
 import qualified Data.Text               as T
 import qualified Data.Vector             as V
@@ -86,96 +89,142 @@ readPromoters = (fmap . concatMap) fn . readGenes
             | otherwise = geneRight : map snd geneTranscripts
 {-# INLINE readPromoters #-}
 
-createLinkage :: ( ATACSeq S (File '[] 'Other)  -- ^ assignments
+createLinkage :: ( ATACSeq S ( File tag1 'Bed         -- ^ Active promoters
+                             , File tag2 'Bed         -- ^ TFBS
+                             )
                  , Either (File t1 'NarrowPeak) (File t2 'BroadPeak)  -- ^ promoter activity
                  , Either (File t1 'NarrowPeak) (File t2 'BroadPeak)  -- ^ enhancer activity
+                 , Maybe (File '[ChromosomeLoop] 'Bed)  -- ^ HiC loops
+                 , Maybe (File '[] 'Tsv)          -- ^ Expression
                  )
-              -> WorkflowConfig TaijiConfig (ATACSeq S (File '[] 'Other))
-createLinkage (atac, pro, enh) = do
+              -> WorkflowConfig TaijiConfig
+                    (ATACSeq S (File '[] 'Other, File '[] 'Other))
+createLinkage (atac, pro, enh, hic, expr) = do
     dir <- asks ((<> "/Network/" <> asDir (T.unpack grp)) . _taiji_output_dir) >>= getPath
-    let out = dir ++ "/linkages.bin"
+    let netEdges = dir ++ "/edges_combined.csv"
+        netNodes = dir ++ "/nodes.csv"
+        bindingEdges = dir ++ "/edges_binding.csv"
     liftIO $ do
+        expr' <- case expr of
+            Nothing -> return M.empty
+            Just e -> readExpression 1 (B.pack $ T.unpack grp ) $ e^.location
         activityPro <- fmap (bedToTree max . map (\x -> (x, fromJust $ x^.npPvalue))) $
             readBed' fl_pro
         activityEnh <- fmap (bedToTree max . map (\x -> (x, fromJust $ x^.npPvalue))) $
             readBed' fl_enh
-        runResourceT $ runConduit $ readLinks fl_region activityPro activityEnh .|
-            conduitPut put .| sinkFile out
-    return $ atac & replicates.mapped.files .~ (emptyFile & location .~ out)
+        withFile netEdges WriteMode $ \h1 -> withFile bindingEdges WriteMode $ \h2 -> do
+            B.hPutStrLn h1 ":START_ID,:END_ID,weight,:TYPE"
+            B.hPutStrLn h2 $ ":START_ID,:END_ID,chr,start:int,end:int," <>
+                "annotation,affinity,:TYPE"
+            let conduit = findTargets active_pro tfbs hic .|
+                    createLinkage_ activityPro activityEnh expr' .|
+                    mapM_C (liftIO . outputEdge h1 h2)
+            s <- execStateT (runConduit conduit) S.empty
+            let nodeHeader = "geneName:ID,expression,expressionZScore"
+            B.writeFile netNodes $ B.unlines $ (nodeHeader:) $
+                map nodeToLine $ S.toList s
+    return $ atac & replicates.mapped.files .~
+        ( emptyFile & location .~ netNodes
+        , emptyFile & location .~ netEdges )
   where
-    readLinks fl actP actE = sourceFileBS fl .| conduitGet2 get .| mapC f
+    outputEdge h1 h2 e = B.hPutStrLn hdl $ edgeToLine e
       where
-        f (nm, (ps, es)) =
-            ( nm
-            , M.toList $ fmap (mergeTFBS combineFn) $ M.fromListWith (++) $
-                mapMaybe (g actP) ps
-            , M.toList $ fmap (mergeTFBS combineFn) $ M.fromListWith (++) $
-                mapMaybe (g actE) es) :: Linkage
-        g act x = case getActivity x act of
-            Nothing -> Nothing
-            Just v -> Just ( getTFName x,
-                [x & score.mapped %~ (transform_peak_height v *) . transform_site_pvalue] )
+        hdl = case _edge_type e of
+            Combined _ -> h1
+            Binding{..} -> h2
+    fl_pro = either (^.location) (^.location) pro
+    fl_enh = either (^.location) (^.location) enh
+    (active_pro, tfbs) = atac^.replicates._2.files
+    grp = atac^.groupName._Just
+{-# INLINE createLinkage #-}
+
+createLinkage_ :: BEDTree Double   -- ^ Promoter activities
+               -> BEDTree Double   -- ^ Enhancer activities
+               -> M.Map GeneName (Double, Double)   -- ^ Gene expression
+               -> ConduitT (GeneName, ([BED], [BED]))
+                           NetEdge
+                           (StateT (S.Set NetNode) IO) ()
+createLinkage_ act_pro act_enh expr = concatMapMC $ \(geneName, (ps, es)) -> do
+    let tfEnhancer = M.toList $ fmap getBestMotif $ M.fromListWith (++) $
+            mapMaybe (g act_enh) es
+        edgeEnhancer = flip concatMap tfEnhancer $ \(tfName, sites) ->
+            flip map sites $ \st -> NetEdge
+                { _edge_from = tfName
+                , _edge_to = geneName
+                , _edge_type = Binding
+                    { _edge_binding_locus = convert st
+                    , _edge_binding_annotation = "enhancer"
+                    , _edge_binding_affinity = fromJust $ st^.score }
+                }
+        tfPromoter = M.toList $ fmap getBestMotif $ M.fromListWith (++) $
+            mapMaybe (g act_pro) ps
+        edgePromoter = flip concatMap tfPromoter $ \(tfName, sites) ->
+            flip map sites $ \st -> NetEdge
+                { _edge_from = tfName
+                , _edge_to = geneName
+                , _edge_type = Binding
+                    { _edge_binding_locus = convert st
+                    , _edge_binding_annotation = "promoter"
+                    , _edge_binding_affinity = fromJust $ st^.score }
+                }
+        tfs = M.toList $ fmap (lp 2 . map (fromJust . (^.score))) $
+            M.fromListWith (++) $ tfEnhancer ++ tfPromoter
+        (geneExpr, scaledGeneExpr) = M.findWithDefault (0.1, -10) geneName expr
+        geneNode = NetNode { _node_name = geneName
+                           , _node_expression = Just geneExpr
+                           , _node_scaled_expression = Just scaledGeneExpr }
+    modify' $ S.insert geneNode
+    edgeCombined <- forM tfs $ \(tfName, w) -> do
+        let (tfExpr, scaledTfExpr) = M.findWithDefault (0.1, -10) tfName expr
+            tfNode = NetNode { _node_name = tfName
+                             , _node_expression = Just tfExpr
+                             , _node_scaled_expression = Just scaledTfExpr }
+        modify' $ S.insert tfNode
+        return $ NetEdge { _edge_from = tfName
+                         , _edge_to = geneName
+                         , _edge_type = Combined (w * sqrt tfExpr) }
+    return $ edgePromoter ++ edgeEnhancer ++ edgeCombined
+  where
+    getBestMotif xs = runIdentity $ runConduit $
+        mergeBedWith (maximumBy (comparing (^.score))) xs .| sinkList
+    g act bed = case IM.elems (intersecting act bed) of
+        [] -> Nothing
+        xs -> Just ( getTFName bed
+            , [bed & score.mapped %~ (transform_peak_height (maximum xs) *) . transform_site_pvalue] )
     getTFName x = mk $ head $ B.split '+' $ x^.name._Just
     transform_peak_height x = 1 / (1 + exp (-(x - 5)))
     transform_site_pvalue x' = 1 / (1 + exp (-(x - 5)))
       where
         x = negate $ logBase 10 $ max 1e-20 x'
-    fl_pro = either (^.location) (^.location) pro
-    fl_enh = either (^.location) (^.location) enh
-    fl_region = atac^.replicates._2.files.location
-    grp = atac^.groupName._Just
-
-combineFn :: [Double] -> Double
-combineFn = lp 2
-{-# INLINE combineFn #-}
+{-# INLINE createLinkage_ #-}
 
 lp :: Int -> [Double] -> Double
 lp p = (**(1/fromIntegral p)) . foldl' (+) 0 . map (**fromIntegral p)
 {-# INLINE lp #-}
 
-mergeTFBS :: ([Double] -> Double)  -- ^ Combining functin
-          -> [BED] -> Double
-mergeTFBS fn xs = fn $ runIdentity $ runConduit $
-    mergeBedWith (maximum . map (fromJust . (^.score))) xs .| sinkList
-{-# INLINE mergeTFBS #-}
-
--- | Assign activity to TFBS
-getActivity :: BED -> BEDTree Double -> Maybe Double
-getActivity tfbs beds = case IM.elems (intersecting beds tfbs) of
-    [] -> Nothing
-    xs -> Just $ maximum xs
-{-# INLINE getActivity #-}
-
-findTargets :: ATACSeq S ( File tag1 'Bed          -- ^ Active promoters
-                         , File tag2 'Bed )        -- ^ TFBS
+findTargets :: MonadIO m
+            => File tag1 'Bed         -- ^ Active promoters
+            -> File tag2 'Bed         -- ^ TFBS
             -> Maybe (File '[ChromosomeLoop] 'Bed)  -- ^ HiC loops
-            -> WorkflowConfig TaijiConfig (ATACSeq S (File '[] 'Other))
-findTargets atac hic = do
-    dir <- asks ((<> "/Network/" <> asDir (T.unpack grp)) . _taiji_output_dir) >>= getPath
-    let out = dir ++ "/TFBS_assignment.bin"
-    liftIO $ do
-        tfbs <- bedToTree (++) . map (\x -> (x, [x])) <$> readBed' (fl_tfbs^.location)
-        promoters <- readBed' $ fl_pro^.location
-        let enhancers2D = getRegulatoryDomains 1000000 promoters
-        enhancers3D <- case hic of
-            Nothing -> return []
-            Just fl -> runResourceT $ runConduit $ read3DContact (fl^.location) .|
-                getContactingRegions promoters .| sinkList
-        let regions = groupRegions $
-                zip (repeat Promoter) (mergeDomains promoters) ++
-                zip (repeat Enhancer) (mergeDomains $ enhancers2D ++ enhancers3D)
-        runResourceT $ runConduit $
-            yieldMany regions .| findTargets_ tfbs .| conduitPut put .|
-            sinkFile out
-    return $ atac & replicates.mapped.files .~ (emptyFile & location .~ out)
+            -> ConduitT () (GeneName, ([BED], [BED])) m ()
+findTargets fl_pro fl_tfbs hic = do
+    tfbs <- liftIO $ bedToTree (++) . map (\x -> (x, [x])) <$> readBed' (fl_tfbs^.location)
+    promoters <- liftIO $ readBed' $ fl_pro^.location
+    let enhancers2D = getRegulatoryDomains 1000000 promoters
+    enhancers3D <- case hic of
+        Nothing -> return []
+        Just fl -> liftIO $ runResourceT $ runConduit $ read3DContact (fl^.location) .|
+            getContactingRegions promoters .| sinkList
+    let regions = groupRegions $
+            zip (repeat Promoter) (mergeDomains promoters) ++
+            zip (repeat Enhancer) (mergeDomains $ enhancers2D ++ enhancers3D)
+    yieldMany regions .| findTargets_ tfbs
   where
-    [(fl_pro, fl_tfbs)] = atac^..replicates.folded.files
-    grp = atac^.groupName._Just
     groupRegions = groupBy ((==) `on` ((^._data) . snd)) .
         sortBy (comparing ((^._data) . snd))
 
 findTargets_ :: Monad m
-             => BEDTree [BED]
+             => BEDTree [BED]   -- ^ TF binding sites
              -> ConduitT [(DomainType, RegDomain)] (GeneName, ([BED], [BED])) m ()
 findTargets_ tfbs = mapC ( \xs ->
     (snd (head xs) ^. _data, divide $ concat $ mapMaybe f xs) )
@@ -254,3 +303,30 @@ getContactingRegions promoters =
   where
     intersect t x = nubSort $ concat $ IM.elems $ intersecting t x
 {-# INLINE getContactingRegions #-}
+
+-- | Read RNA expression data
+readExpression :: Double    -- ^ Threshold to call a gene as non-expressed
+               -> B.ByteString  -- ^ cell type
+               -> FilePath
+               -> IO (M.Map GeneName (Double, Double)) -- ^ absolute value and z-score
+readExpression cutoff ct fl = do
+    c <- B.readFile fl
+    let ((_:header):dat) = map (B.split '\t') $ B.lines c
+        rowNames = map (mk . head) dat
+        dataTable = map (U.fromList . map ((+pseudoCount) . readDouble) . tail) dat
+        dataTable' = MU.fromRows $ zipWith U.zip dataTable $
+            map computeZscore dataTable :: MU.Matrix (Double, Double)
+        idx = fromMaybe (error $ "Cell type:" ++ B.unpack ct ++ " not found!") $
+            lookup ct $ zip header [0..]
+    return $ M.fromList $ zip rowNames $ U.toList $ dataTable' `MU.takeColumn` idx
+  where
+    pseudoCount = 0.1
+    computeZscore xs
+        | U.length xs == 1 = U.map log xs
+        | U.all (<cutoff) xs = U.replicate (U.length xs) (-10)
+        | U.length xs == 2 = let fc = log $ U.head xs / U.last xs
+                             in U.fromList [fc, negate fc]
+        | U.all (== U.head xs) xs = U.replicate (U.length xs) 0
+        | otherwise = scale xs
+{-# INLINE readExpression #-}
+

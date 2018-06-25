@@ -6,7 +6,7 @@ packages:
 extra-deps:
 
 - git:     https://github.com/Taiji-pipeline/Taiji-types.git
-  commit:  a4a5b54c202e3e8c7d44e27cdb9ba1d1c635358d
+  commit:  1b67d60f8689adb2f56d95551141e5e2f8efbff1
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
   commit:  9aa46fbad740dda0469a86e819e7f3640c0ab22a

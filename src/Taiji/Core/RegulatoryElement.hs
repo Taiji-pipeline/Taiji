@@ -5,8 +5,7 @@
 {-# LANGUAGE RecordWildCards   #-}
 
 module Taiji.Core.RegulatoryElement
-    ( Linkage
-    , getHiCLoops
+    ( getHiCLoops
     , findActivePromoters
     , createLinkage
     ) where

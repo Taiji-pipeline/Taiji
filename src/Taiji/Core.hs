@@ -50,14 +50,14 @@ builder = do
         |] $ do
             note .= "Prepare for parallel execution."
             submitToRemote .= Just False
-    nodePS 1 "Create_Linkage" 'createLinkage $ return ()
+    nodePS 1 "Create_Linkage" 'createLinkage $ do
+        remoteParam .= "--mem=20000 -p gpu"
 
     nodeP 1 "Compute_Ranks" 'computeRanks $ do
         note .= "Perform personalized Pagerank."
         remoteParam .= "--mem=20000 -p gpu"
 
-    nodeS "Output_Ranks" 'outputRanks $ do
-        remoteParam .= "--mem=20000 -p gpu"
+    nodeS "Output_Ranks" 'outputRanks $ return ()
 
     path ["Create_Linkage_Prep", "Create_Linkage", "Compute_Ranks", "Output_Ranks"]
 

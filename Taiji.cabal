@@ -22,6 +22,7 @@ library
                        -fno-warn-unticked-promoted-constructors
 
   exposed-modules:     Taiji.Core
+                       Taiji.Constants
                        Taiji.Core.RegulatoryElement
                        Taiji.Core.Network
                        Taiji.Core.Network.DeNovo

@@ -32,8 +32,7 @@ readEdges fl = do
     c <- B.readFile fl
     return $ map (f . B.split '\t') $ B.lines c
   where
-    f [a,b] = (mk a, mk b)
-    f _ = undefined
+    f xs = (mk $ xs!!0, mk $ xs!!1)
 {-# INLINE readEdges #-}
 
 mkNode :: M.Map GeneName (Double, Double)  -- ^ Gene expression
@@ -49,7 +48,7 @@ mkNode expr nd = NetNode { _node_name = nd
 mkEdge :: M.Map GeneName (Double, Double)  -- ^ Gene expression
        -> (GeneName, GeneName)
        -> ((GeneName, GeneName), Double)
-mkEdge expr (fr, to) = ((fr, to), frExpr)
+mkEdge expr (fr, to) = ((fr, to), sqrt frExpr)
   where
     (frExpr, _) = M.findWithDefault (0.1, 0) fr expr
 {-# INLINE mkEdge #-}

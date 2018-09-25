@@ -57,7 +57,9 @@ mkNetwork nodeFl edgeFl = do
             [f1,f2,f3,_] = B.split ',' l
 {-# INLINE mkNetwork #-}
 
-readNetwork :: FilePath -> FilePath
+-- | Read network files as nodes and edges
+readNetwork :: FilePath   -- ^ nodes
+            -> FilePath   -- ^ edges
             -> IO ([NetNode], [((GeneName, GeneName), Double)])
 readNetwork nodeFl edgeFl = do
     nds <- map nodeFromLine . tail . B.lines <$> B.readFile nodeFl

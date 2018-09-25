@@ -106,22 +106,6 @@ outputRanks inputs = do
   where
     toBS nm xs = B.intercalate "\t" $ nm : map toShortest xs
 
---------------------------------------------------------------------------------
--- Transformation functions
---------------------------------------------------------------------------------
-
-getSiteWeight :: Double -> Double
-getSiteWeight = id
-{-# INLINE getSiteWeight #-}
-
-transform_exp :: Double -> Double
-transform_exp = sqrt
-{-# INLINE transform_exp #-}
-
-transform_corr :: Double -> Double
-transform_corr = abs
-{-# INLINE transform_corr #-}
-
 transform_node_weight :: Double -> Double
 transform_node_weight = exp
 {-# INLINE transform_node_weight #-}

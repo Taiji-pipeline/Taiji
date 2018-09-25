@@ -33,6 +33,7 @@ import Taiji.Core.Network.Utils
 import Taiji.Core.RegulatoryElement (findTargets)
 import           Taiji.Core.Config                 ()
 import           Taiji.Types
+import           Taiji.Constants (edge_weight_cutoff)
 
 createLinkage :: ( ATACSeq S ( File tag1 'Bed         -- ^ Active promoters
                              , File tag2 'Bed         -- ^ TFBS
@@ -93,7 +94,7 @@ createLinkage_ :: BEDTree Double   -- ^ Promoter activities
                            (StateT (S.Set NetNode) IO) ()
 createLinkage_ act_pro act_enh expr = concatMapMC $ \(geneName, (ps, es)) -> do
     let tfEnhancer = M.toList $ fmap getBestMotif $ M.fromListWith (++) $
-            mapMaybe (g act_enh) es
+            mapMaybe (getWeight act_enh) es
         edgeEnhancer = flip concatMap tfEnhancer $ \(tfName, sites) ->
             flip map sites $ \st -> NetEdge
                 { _edge_from = tfName
@@ -104,7 +105,7 @@ createLinkage_ act_pro act_enh expr = concatMapMC $ \(geneName, (ps, es)) -> do
                     , _edge_binding_affinity = fromJust $ st^.score }
                 }
         tfPromoter = M.toList $ fmap getBestMotif $ M.fromListWith (++) $
-            mapMaybe (g act_pro) ps
+            mapMaybe (getWeight act_pro) ps
         edgePromoter = flip concatMap tfPromoter $ \(tfName, sites) ->
             flip map sites $ \st -> NetEdge
                 { _edge_from = tfName
@@ -134,10 +135,12 @@ createLinkage_ act_pro act_enh expr = concatMapMC $ \(geneName, (ps, es)) -> do
   where
     getBestMotif xs = runIdentity $ runConduit $
         mergeBedWith (maximumBy (comparing (^.score))) xs .| sinkList
-    g act bed = case IM.elems (intersecting act bed) of
+    getWeight act bed = case IM.elems (intersecting act bed) of
         [] -> Nothing
-        xs -> Just ( getTFName bed
-            , [bed & score.mapped %~ (transform_peak_height (maximum xs) *) . transform_site_pvalue] )
+        xs -> let p = transform_peak_height $ maximum xs
+                  w = sqrt $ transform_site_pvalue (fromJust $ bed^.score) * p
+              in if w < edge_weight_cutoff
+                then Nothing else Just (getTFName bed, [bed & score .~ Just w])
     getTFName x = mk $ head $ B.split '+' $ x^.name._Just
     transform_peak_height x = 1 / (1 + exp (-(x - 5)))
     transform_site_pvalue x' = 1 / (1 + exp (-(x - 5)))

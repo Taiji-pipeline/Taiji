@@ -13,6 +13,7 @@ import           Data.Monoid                  ((<>))
 import           Scientific.Workflow
 
 import           Taiji.Core.Network
+import           Taiji.Core.Ranking
 import           Taiji.Core.RegulatoryElement
 import           Taiji.Types                  (_taiji_input)
 
@@ -52,12 +53,14 @@ builder = do
             submitToRemote .= Just False
     nodePS 1 "Create_Linkage" 'createLinkage $ do
         remoteParam .= "--mem=20000 -p gpu"
+    path ["Create_Linkage_Prep", "Create_Linkage"]
 
-    nodeP 1 "Compute_Ranks" 'computeRanks $ do
+    node' "Compute_Ranks_Prep" [| \(x, expr) -> zip x $ repeat expr |] $ do
+        submitToRemote .= Just False
+    nodePS 1 "Compute_Ranks" 'computeRanks $ do
         note .= "Perform personalized Pagerank."
         remoteParam .= "--mem=20000 -p gpu"
-
     nodeS "Output_Ranks" 'outputRanks $ return ()
 
-    path ["Create_Linkage_Prep", "Create_Linkage", "Compute_Ranks", "Output_Ranks"]
+    path ["Compute_Ranks_Prep", "Compute_Ranks", "Output_Ranks"]
 

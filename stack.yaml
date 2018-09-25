@@ -1,4 +1,4 @@
-resolver:    nightly-2018-06-05
+resolver:    lts-12.10
 
 packages:
 - '.'
@@ -6,10 +6,10 @@ packages:
 extra-deps:
 
 - git:     https://github.com/Taiji-pipeline/Taiji-types.git
-  commit:  1b67d60f8689adb2f56d95551141e5e2f8efbff1
+  commit:  95aad5f7f30e74ca330167c256daf003c1ee60ad
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
-  commit:  9aa46fbad740dda0469a86e819e7f3640c0ab22a
+  commit:  6aeef7f77be1f6c7d824a4b8eaa14e58daf09b75
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
   commit:  8d9deaef85b0311d3fe58f3b4cf21efe5e5bf151

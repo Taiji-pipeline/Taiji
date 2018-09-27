@@ -21,7 +21,7 @@ import           Data.CaseInsensitive              (original)
 import           Data.Double.Conversion.ByteString (toShortest)
 import           Data.List                         (transpose, sort)
 import           Data.List.Ordered                 (nubSort)
-import qualified Data.Map.Strict                   as M
+import qualified Data.HashMap.Strict                   as M
 import           Data.Maybe                        (fromMaybe, mapMaybe)
 import qualified Data.Text                         as T
 import qualified Data.Vector.Unboxed               as U
@@ -46,7 +46,7 @@ computeRanks (atac, exprFl) = do
             expr <- fromMaybe (return M.empty) $ fmap
                 (readExpression 1 (B.pack $ T.unpack grp) . (^.location)) exprFl
             n1 <- getExternalLinks expr net
-            n2 <- readNetwork (nodeFl^.location) (edgeFl^.location)
+            n2 <- readNodesAndEdges (nodeFl^.location) (edgeFl^.location)
             return $ combineNetwork n1 n2
     result <- liftIO $ pageRank gr
     return (grp, result)
@@ -97,7 +97,7 @@ outputRanks inputs = do
         header = B.pack $ T.unpack $ T.intercalate "\t" $
             "Gene" : fst (unzip inputs)
         ranks' = flip map ranks $ \r -> flip map genes $
-            \g -> M.findWithDefault (0,1) g r
+            \g -> M.lookupDefault (0,1) g r
     liftIO $ do
         B.writeFile output1 $ B.unlines $ header :
             zipWith toBS (map original genes) (transpose $ (map.map) fst ranks')

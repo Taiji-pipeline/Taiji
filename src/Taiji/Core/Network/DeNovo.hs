@@ -8,8 +8,12 @@
 
 module Taiji.Core.Network.DeNovo
     ( createLinkage
+    , mkNetwork
+    , readNodesAndEdges
     ) where
 
+import Control.Arrow ((&&&))
+import           Bio.Utils.Misc                    (readDouble)
 import           Bio.Data.Experiment
 import           Bio.Pipeline.Utils                (getPath, asDir)
 import Control.Monad.State.Strict
@@ -23,9 +27,10 @@ import qualified Data.ByteString.Char8             as B
 import           Data.CaseInsensitive              (mk)
 import Data.Ord (comparing)
 import           Data.List                         (foldl', maximumBy)
-import qualified Data.Map.Strict                   as M
+import qualified Data.HashMap.Strict                   as M
 import           Data.Maybe                        (fromJust, mapMaybe)
 import qualified Data.Text                         as T
+import IGraph
 import           Scientific.Workflow               hiding (_data)
 import System.IO
 
@@ -88,7 +93,7 @@ createLinkage (atac, pro, enh, hic, expr) = do
 
 createLinkage_ :: BEDTree Double   -- ^ Promoter activities
                -> BEDTree Double   -- ^ Enhancer activities
-               -> M.Map GeneName (Double, Double)   -- ^ Gene expression
+               -> M.HashMap GeneName (Double, Double)   -- ^ Gene expression
                -> ConduitT (GeneName, ([BED], [BED]))
                            NetEdge
                            (StateT (S.Set NetNode) IO) ()
@@ -117,13 +122,13 @@ createLinkage_ act_pro act_enh expr = concatMapMC $ \(geneName, (ps, es)) -> do
                 }
         tfs = M.toList $ fmap (lp 2 . map (fromJust . (^.score))) $
             M.fromListWith (++) $ tfEnhancer ++ tfPromoter
-        (geneExpr, scaledGeneExpr) = M.findWithDefault (0.1, 0) geneName expr
+        (geneExpr, scaledGeneExpr) = M.lookupDefault (0.1, 0) geneName expr
         geneNode = NetNode { _node_name = geneName
                            , _node_expression = Just geneExpr
                            , _node_scaled_expression = Just scaledGeneExpr }
     modify' $ S.insert geneNode
     edgeCombined <- forM tfs $ \(tfName, w) -> do
-        let (tfExpr, scaledTfExpr) = M.findWithDefault (0.1, 0) tfName expr
+        let (tfExpr, scaledTfExpr) = M.lookupDefault (0.1, 0) tfName expr
             tfNode = NetNode { _node_name = tfName
                              , _node_expression = Just tfExpr
                              , _node_scaled_expression = Just scaledTfExpr }
@@ -152,3 +157,34 @@ lp :: Int -> [Double] -> Double
 lp p = (**(1/fromIntegral p)) . foldl' (+) 0 . map (**fromIntegral p)
 {-# INLINE lp #-}
 
+-- | Build the network from files containing the information of nodes and edges.
+mkNetwork :: FilePath  -- ^ nodes
+          -> FilePath  -- ^ edges
+          -> IO (Graph 'D NetNode Double)
+mkNetwork nodeFl edgeFl = do
+    nodeMap <- M.fromList . map ((_node_name &&& id) . nodeFromLine) .
+        tail . B.lines <$> B.readFile nodeFl
+    runResourceT $ fromLabeledEdges' edgeFl (toEdge nodeMap)
+  where
+    toEdge nodeMap fl = sourceFileBS fl .| linesUnboundedAsciiC .|
+        (dropC 1 >> mapC f) 
+      where
+        f l = ( ( M.lookupDefault undefined (mk f2) nodeMap
+                , M.lookupDefault undefined (mk f1) nodeMap )
+              , readDouble f3 )
+          where
+            [f1,f2,f3,_] = B.split ',' l
+{-# INLINE mkNetwork #-}
+
+-- | Read network files as nodes and edges
+readNodesAndEdges :: FilePath   -- ^ nodes
+                  -> FilePath   -- ^ edges
+                  -> IO ([NetNode], [((GeneName, GeneName), Double)])
+readNodesAndEdges nodeFl edgeFl = do
+    nds <- map nodeFromLine . tail . B.lines <$> B.readFile nodeFl
+    es <- map f . tail . B.lines <$> B.readFile edgeFl
+    return (nds, es)
+  where
+    f l = ( ( mk f2, mk f1), readDouble f3 )
+        where
+        [f1,f2,f3,_] = B.split ',' l

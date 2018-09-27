@@ -1,6 +1,6 @@
 module Taiji.Core.Network.Utils where
 
-import qualified Data.Map.Strict     as M
+import qualified Data.HashMap.Strict     as M
 import qualified Data.ByteString.Char8   as B
 import qualified Data.Vector.Unboxed as U
 import           Data.CaseInsensitive    (mk)
@@ -15,7 +15,7 @@ import           Taiji.Types
 readExpression :: Double    -- ^ Threshold to call a gene as non-expressed
                -> B.ByteString  -- ^ cell type
                -> FilePath
-               -> IO (M.Map GeneName (Double, Double)) -- ^ absolute value and z-score
+               -> IO (M.HashMap GeneName (Double, Double)) -- ^ absolute value and z-score
 readExpression cutoff ct fl = do
     c <- B.readFile fl
     let ((_:header):dat) = map (B.split '\t') $ B.lines c

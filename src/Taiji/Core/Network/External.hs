@@ -13,13 +13,13 @@ module Taiji.Core.Network.External
 import qualified Data.ByteString.Char8             as B
 import           Data.CaseInsensitive              (mk)
 import           Data.List.Ordered                 (nubSort)
-import qualified Data.Map.Strict                   as M
+import qualified Data.HashMap.Strict                   as M
 
 import           Taiji.Core.Config                 ()
 import           Taiji.Types
 
 -- | Get nodes and edges from the external network file.
-getExternalLinks :: M.Map GeneName (Double, Double)  -- ^ Gene expression
+getExternalLinks :: M.HashMap GeneName (Double, Double)  -- ^ Gene expression
                  -> FilePath                -- ^ External network file  
                  -> IO ([NetNode], [((GeneName, GeneName), Double)])
 getExternalLinks expr net = do
@@ -35,20 +35,20 @@ readEdges fl = do
     f xs = (mk $ xs!!0, mk $ xs!!1)
 {-# INLINE readEdges #-}
 
-mkNode :: M.Map GeneName (Double, Double)  -- ^ Gene expression
+mkNode :: M.HashMap GeneName (Double, Double)  -- ^ Gene expression
        -> GeneName
        -> NetNode
 mkNode expr nd = NetNode { _node_name = nd
                          , _node_expression = Just ndExpr
                          , _node_scaled_expression = Just scaledNdExpr }
   where
-    (ndExpr, scaledNdExpr) = M.findWithDefault (0.1, 0) nd expr
+    (ndExpr, scaledNdExpr) = M.lookupDefault (0.1, 0) nd expr
 {-# INLINE mkNode #-}
 
-mkEdge :: M.Map GeneName (Double, Double)  -- ^ Gene expression
+mkEdge :: M.HashMap GeneName (Double, Double)  -- ^ Gene expression
        -> (GeneName, GeneName)
        -> ((GeneName, GeneName), Double)
 mkEdge expr (fr, to) = ((fr, to), sqrt frExpr)
   where
-    (frExpr, _) = M.findWithDefault (0.1, 0) fr expr
+    (frExpr, _) = M.lookupDefault (0.1, 0) fr expr
 {-# INLINE mkEdge #-}

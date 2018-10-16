@@ -1,14 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Taiji.Core (builder) where
 
 import           Bio.Data.Experiment
 import           Bio.Data.Experiment.Parser   (readHiC, readHiCTSV)
+import qualified Data.ByteString.Char8 as B
+import qualified Data.Text as T
 import           Control.Lens
 import           Control.Monad.IO.Class       (liftIO)
 import           Control.Monad.Reader         (asks)
 import qualified Data.Map.Strict              as M
-import           Data.Maybe                   (fromJust)
+import           Data.Maybe                   (fromJust, mapMaybe)
 import           Data.Monoid                  ((<>))
 import           Scientific.Workflow
 
@@ -16,6 +20,36 @@ import           Taiji.Core.Network
 import           Taiji.Core.Ranking
 import           Taiji.Core.RegulatoryElement
 import           Taiji.Types                  (_taiji_input)
+
+aggregate :: ( [ATACSeq S f1]   -- ^ Active promoters
+             , [ATACSeq S f2]   -- ^ TFBS
+             , [ATACSeq S f3]   -- ^ peaks for promoter
+             , [ChIPSeq S (Either f3 f4)]   -- ^ peaks for enhancer
+             , [HiC S f5]  -- ^ HiC loops
+             , Maybe (File '[] 'Tsv) )         -- ^ Expression
+          -> IO [ (ATACSeq S (f1, f2), Either f3 f4, Either f3 f4, Maybe f5, Maybe (File '[] 'Tsv)) ]
+aggregate (activePro, tfbs, atac_peaks, chip_peaks, hic, expr) = do
+    grps <- case expr of
+        Nothing -> return Nothing
+        Just fl -> Just . map (T.pack . B.unpack) . tail . B.split '\t' .
+            head . B.lines <$> B.readFile (fl^.location)
+    return $ flip mapMaybe activePro $ \e ->
+        let grp = e^.groupName._Just
+            pro = M.findWithDefault undefined grp atacFileMap
+            enh = M.findWithDefault pro grp chipFileMap
+            hic' = M.lookup grp hicFileMap
+            e' = e & replicates.mapped.files %~ (\f -> (f, fromJust $ M.lookup grp tfbsMap))
+        in case grps of
+            Nothing -> Just (e', pro, enh, hic', expr)
+            Just grps' -> if grp `elem` grps'
+                then Just (e', pro, enh, hic', expr)
+                else Nothing
+  where
+    tfbsMap = M.fromList $ map getFile tfbs
+    atacFileMap = fmap Left $ M.fromList $ map getFile atac_peaks
+    chipFileMap = M.fromList $ map getFile chip_peaks
+    hicFileMap = M.fromList $ map getFile hic
+    getFile x = (x^.groupName._Just, x^.replicates._2.files)
 
 builder :: Builder ()
 builder = do
@@ -35,22 +69,9 @@ builder = do
             submitToRemote .= Just False
             note .= "Read HiC loops from input file."
 
-    node' "Create_Linkage_Prep" [| \(activePro, tfbs, atac_peaks, chip_peaks, hic, expr) ->
-        let getFile x = (x^.groupName._Just, x^.replicates._2.files)
-            tfbsMap = M.fromList $ map getFile tfbs
-            atacFileMap = fmap Left $ M.fromList $ map getFile atac_peaks
-            chipFileMap = M.fromList $ map getFile chip_peaks
-            hicFileMap = M.fromList $ map getFile hic
-        in flip map activePro $ \e ->
-            let grp = e^.groupName._Just
-                pro = M.findWithDefault undefined grp atacFileMap
-                enh = M.findWithDefault pro grp chipFileMap
-                hic' = M.lookup grp hicFileMap
-                e' = e & replicates.mapped.files %~ (\f -> (f, fromJust $ M.lookup grp tfbsMap))
-            in (e', pro, enh, hic', expr)
-        |] $ do
-            note .= "Prepare for parallel execution."
-            submitToRemote .= Just False
+    node "Create_Linkage_Prep" 'aggregate $ do
+        note .= "Prepare for parallel execution."
+        submitToRemote .= Just False
     nodePS 1 "Create_Linkage" 'createLinkage $ do
         remoteParam .= "--mem=20000 -p gpu"
     path ["Create_Linkage_Prep", "Create_Linkage"]

@@ -1,4 +1,4 @@
-resolver:    lts-12.10
+resolver:    lts-12.11
 
 packages:
 - '.'
@@ -18,7 +18,7 @@ extra-deps:
   commit:  2a858817f26d7160da8d9b8c4a83f4b833d324c7
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  74be946df79599e5c89517d0859b35499403211d
+  commit:  63b07c26067e3bb0610051cc61d369807bedde60
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ChIP-seq.git
   commit:  ad5cd2364c4f434e270b86ce004153ec17106d21

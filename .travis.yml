@@ -1,31 +1,36 @@
-language:        c
+sudo: required
+
+language: c
 
 os:
   - linux
 
-sudo: required
-
-cache:
-  directories:
-    - $HOME/.stack
-
 services:
   - docker
+
+#cache:
+#  directories:
+#    - $HOME/.stack_latest
+#    - $HOME/.stack_centos6
+
+env:
+  - TAG=latest SUFFIX=""
+  - TAG=centos6 SUFFIX="_CentOS6"
 
 deploy:
   provider:      releases
   skip_cleanup: true
   api_key: $GITHUB_TOKEN
-  file:          taiji-Linux-x86_64
+  file:          taiji-Linux-x86_64$SUFFIX
   on:
     tags: true
 
 before_install:
-  - docker pull kaizhang/haskell-stack
+  - docker pull kaizhang/centos-haskell-stack:$TAG
 
 script:
-  - docker run -v `pwd`:/build:rw
-    -v $HOME/.stack:/root/.stack:rw
-    kaizhang/haskell-stack
+  - docker run
+    -v `pwd`:/build:rw
+    kaizhang/centos-haskell-stack:$TAG
     /bin/bash -c
-    "cd build && stack build --allow-different-user && mv \`stack path --allow-different-user --local-install-root\`/bin/taiji taiji-Linux-x86_64"
+    "cd build && stack build --stack-yaml stack$SUFFIX.yaml --allow-different-user && mv \`stack path --allow-different-user --local-install-root\`/bin/taiji taiji-Linux-x86_64"

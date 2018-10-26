@@ -1,4 +1,4 @@
-resolver:    lts-12.14
+resolver:    nightly-2018-05-30
 
 packages:
 - '.'
@@ -35,3 +35,5 @@ extra-deps:
 - drmaa-0.2.0
 - clustering-0.4.0
 - SciFlow-0.6.2
+- graphviz-2999.20.0.2
+- wl-pprint-text-1.2.0.0

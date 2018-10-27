@@ -8,29 +8,62 @@ os:
 services:
   - docker
 
-#cache:
-#  directories:
-#    - $HOME/.stack_latest
-#    - $HOME/.stack_centos6
+cache:
+  directories:
+    - $HOME/build
 
 env:
   - TAG=latest SUFFIX=""
   - TAG=centos6 SUFFIX="_CentOS6"
 
 deploy:
-  provider:      releases
+  provider: releases
   skip_cleanup: true
   api_key: $GITHUB_TOKEN
-  file:          taiji-Linux-x86_64$SUFFIX
+  file: 
+    - taiji-Linux-x86_64$SUFFIX
   on:
     tags: true
 
-before_install:
-  - docker pull kaizhang/centos-haskell-stack:$TAG
-
 script:
+  - docker pull kaizhang/centos-haskell-stack:$TAG
   - docker run
-    -v `pwd`:/build:rw
+    -v $HOME/build:/root/.stack
+    -v `pwd`:/source:rw
     kaizhang/centos-haskell-stack:$TAG
     /bin/bash -c
-    "cd build && stack build --stack-yaml stack$SUFFIX.yaml --allow-different-user && mv \`stack path --allow-different-user --local-install-root\`/bin/taiji taiji-Linux-x86_64"
+    "cd source &&
+    stack install --stack-yaml stack$SUFFIX.yaml --allow-different-user &&
+    mv /root/.local/bin/taiji /source/taiji-Linux-x86_64$SUFFIX"
+
+stages:
+  - build dependencies 1
+  - build dependencies 2
+  - test
+
+jobs:
+  include:
+    - stage: build dependencies 1
+      script:
+        - docker pull kaizhang/centos-haskell-stack:$TAG
+        - docker run
+          -v $HOME/build:/root/.stack
+          -v `pwd`:/source:rw
+          kaizhang/centos-haskell-stack:$TAG
+          /bin/bash -c
+          "cd source &&
+          stack build --only-dependencies --stack-yaml stack$SUFFIX.yaml --allow-different-user"
+      env:
+        - TAG=latest SUFFIX=""
+    - stage: build dependencies 2
+      script:
+        - docker pull kaizhang/centos-haskell-stack:$TAG
+        - docker run
+          -v $HOME/build:/root/.stack
+          -v `pwd`:/source:rw
+          kaizhang/centos-haskell-stack:$TAG
+          /bin/bash -c
+          "cd source &&
+          stack build --only-dependencies --stack-yaml stack$SUFFIX.yaml --allow-different-user"
+      env:
+        - TAG=centos6 SUFFIX="_CentOS6"

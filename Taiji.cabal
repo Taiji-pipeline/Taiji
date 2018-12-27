@@ -50,7 +50,7 @@ library
                      , conduit
                      , data-default-class
                      , data-ordlist
-                     , haskell-igraph >= 0.7.0
+                     , haskell-igraph >= 0.7.1
                      , hashable
                      , IntervalMap
                      , lens

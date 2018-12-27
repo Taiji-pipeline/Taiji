@@ -1,8 +1,0 @@
-annotation: "/home/kai/genome/GRCh38/Annotation/gencode.v25.annotation.gtf"
-genome_index: "/home/kai/genome/GRCh38/Sequence/GRCh38.index"
-bwa_index: "/home/kai/genome/GRCh38/Sequence/BWAIndex/"
-genome: "/home/kai/genome/GRCh38/Sequence/BWAIndex/genome.fa"
-input: input.yml
-output_dir: output/
-picard: picard.jar
-motif_file: "/home/kai/motif_databases/cisBP_human.meme"

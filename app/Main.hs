@@ -17,6 +17,7 @@ import           Taiji.Types            (TaijiConfig)
 
 mainWith defaultMainOpts
     { programHeader = printf "Taiji-v%s" $ showVersion version } $ do
+        namespace "RNA" $ RNASeq.inputReader "RNA-seq"
         namespace "RNA" RNASeq.builder
         namespace "ATAC" ATACSeq.builder
         namespace "H3K27ac" $ ChIPSeq.inputReader "H3K27ac"

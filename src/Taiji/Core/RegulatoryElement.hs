@@ -11,6 +11,7 @@ module Taiji.Core.RegulatoryElement
     ) where
 
 import           Bio.Data.Bed
+import           Bio.Data.Bed.Types (fromSorted)
 import           Bio.Data.Experiment
 import           Bio.Pipeline.Utils      (getPath)
 import           Bio.RealWorld.GENCODE

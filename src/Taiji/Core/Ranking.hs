@@ -27,6 +27,7 @@ import qualified Data.Text                         as T
 import qualified Data.Vector.Unboxed               as U
 import           IGraph
 import           IGraph.Algorithms (pagerank, rewireEdges)
+import IGraph.Random (withSeed)
 import           Scientific.Workflow               hiding (_data)
 import Data.Vector.Algorithms.Search (binarySearch)
 
@@ -75,9 +76,10 @@ getRankPvalue :: Int   -- ^ The number of randomization to be performed
               -> IO (Double -> Double)
 getRankPvalue n gr = do
     gr' <- thaw gr
-    scores <- fmap (U.fromList . sort . concat) $ replicateM n $ do
-        rewireEdges gr' 1 False False
-        pageRank_ <$> unsafeFreeze gr' 
+    scores <- fmap (U.fromList . sort . concat) $ replicateM n $
+        withSeed 2394 $ \gen -> do
+            rewireEdges gr' 1 False False gen
+            pageRank_ <$> unsafeFreeze gr' 
     return $ getP scores
   where
     getP vec x = 1 - fromIntegral (bisect vec x) / fromIntegral (U.length vec) 

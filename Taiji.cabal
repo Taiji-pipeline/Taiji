@@ -1,5 +1,5 @@
 name:                Taiji
-version:             0.5.0
+version:             0.6.0
 synopsis:            all-in-one bioinformatics analysis pipeline
 description:         all-in-one bioinformatics analysis pipeline
 homepage:            https://taiji-pipeline.github.io/
@@ -7,7 +7,7 @@ license:             BSD3
 license-file:        LICENSE
 author:              Kai Zhang
 maintainer:          kai@kzhang.org
-copyright:           (c) 2017-2018 Kai Zhang
+copyright:           (c) 2017-2019 Kai Zhang
 category:            Bio
 build-type:          Simple
 extra-source-files:

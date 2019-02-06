@@ -14,7 +14,6 @@ cache:
 
 env:
   - TAG=latest SUFFIX=""
-  - TAG=centos6 SUFFIX="_CentOS6"
 
 deploy:
   provider: releases
@@ -38,12 +37,11 @@ script:
 
 stages:
   - build dependencies 1
-  - build dependencies 2
   - test
 
 jobs:
   include:
-    - stage: build dependencies 1
+    - stage: build dependencies
       script:
         - docker pull kaizhang/centos-haskell-stack:$TAG
         - docker run
@@ -55,15 +53,3 @@ jobs:
           stack build --only-dependencies --stack-yaml stack$SUFFIX.yaml --allow-different-user"
       env:
         - TAG=latest SUFFIX=""
-    - stage: build dependencies 2
-      script:
-        - docker pull kaizhang/centos-haskell-stack:$TAG
-        - docker run
-          -v $HOME/build:/root/.stack
-          -v `pwd`:/source:rw
-          kaizhang/centos-haskell-stack:$TAG
-          /bin/bash -c
-          "cd source &&
-          stack build --only-dependencies --stack-yaml stack$SUFFIX.yaml --allow-different-user"
-      env:
-        - TAG=centos6 SUFFIX="_CentOS6"

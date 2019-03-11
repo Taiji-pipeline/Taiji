@@ -18,7 +18,7 @@ extra-deps:
   commit:  993b4d5103184c9347dc95f26bbb7b327d82d480 
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  b2d05b8ab80e51205150167fc096ec81f9a4e472
+  commit:  9db1eb9bf0bc224e265a7a14f7d0bc84da0b8407
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ChIP-seq.git
   commit:  ad5cd2364c4f434e270b86ce004153ec17106d21

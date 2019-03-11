@@ -23,8 +23,8 @@ mainWith defaultMainOpts
         namespace "H3K27ac" $ ChIPSeq.inputReader "H3K27ac"
         namespace "H3K27ac" ChIPSeq.builder
         Core.builder
-        path ["ATAC_Call_Peak", "Find_Active_Promoter"]
-        [ "Find_Active_Promoter", "ATAC_Get_TFBS", "ATAC_Call_Peak"
+        path ["ATAC_Get_Peak", "Find_Active_Promoter"]
+        [ "Find_Active_Promoter", "ATAC_Get_TFBS", "ATAC_Get_Peak"
             , "H3K27ac_Get_Peak", "HiC_Read_Input", "RNA_Make_Expr_Table"
             ] ~> "Create_Linkage_Prep"
         ["Create_Linkage", "RNA_Make_Expr_Table"] ~> "Compute_Ranks_Prep"

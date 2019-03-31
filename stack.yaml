@@ -9,16 +9,16 @@ extra-deps:
   commit:  31ead1f777f74271eea062ab135eaba067c1099d
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
-  commit:  c7f1cea72f09ef20e1cb0ab019ca5296267aea4e
+  commit:  634d7ef1e1e24b2283cb1c164ad4e740d86a7535
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
-  commit:  04a2040b0dcccf04eec4fa927f38b8a1cb5f6369
+  commit:  ebd2608d4cc759db7f43a7cbd125b656bd113494
 
 - git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
   commit:  fa47539f5f9ca64f72868edccb5545525be03d7c
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  a9be540adcb4245164da36ecd567784ec5bcfd56
+  commit:  75970b4b13462b605c9cda7cfae4ce7bcab83dbc
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ChIP-seq.git
   commit:  ad5cd2364c4f434e270b86ce004153ec17106d21
@@ -26,7 +26,11 @@ extra-deps:
 - git:     https://github.com/kaizhang/haskell-igraph.git
   commit:  e9db8aad4ca005257a464a5eff0e5ff15aa761b2
 
-- bioinformatics-toolkit-0.6.0
+- git:     https://github.com/kaizhang/bioinformatics-toolkit.git
+  commit:  d1ce0f73c04c77edd674cad92904789f5fd46409
+  subdirs: 
+    - bioinformatics-toolkit
+
 - HsHTSLib-1.9.2
 - drmaa-0.2.0
 - clustering-0.4.1

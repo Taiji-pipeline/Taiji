@@ -6,10 +6,10 @@ packages:
 extra-deps:
 
 - git:     https://github.com/Taiji-pipeline/Taiji-types.git
-  commit:  31ead1f777f74271eea062ab135eaba067c1099d
+  commit:  9466d7f69977778f50bfdd60fd4fbf62a93dea7b
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
-  commit:  634d7ef1e1e24b2283cb1c164ad4e740d86a7535
+  commit:  bd10c445832a3f3bdf82b57ddf1224397b78390b
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
   commit:  ebd2608d4cc759db7f43a7cbd125b656bd113494
@@ -18,7 +18,7 @@ extra-deps:
   commit:  fa47539f5f9ca64f72868edccb5545525be03d7c
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  75970b4b13462b605c9cda7cfae4ce7bcab83dbc
+  commit:  ccd857d10353354de3c314a62a3e96c35c0d9667
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ChIP-seq.git
   commit:  ad5cd2364c4f434e270b86ce004153ec17106d21

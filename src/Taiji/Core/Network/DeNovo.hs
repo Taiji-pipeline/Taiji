@@ -36,7 +36,6 @@ import System.IO
 
 import Taiji.Core.Network.Utils
 import Taiji.Core.RegulatoryElement (findTargets)
-import           Taiji.Core.Config                 ()
 import           Taiji.Types
 import           Taiji.Constants (edge_weight_cutoff)
 

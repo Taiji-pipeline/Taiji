@@ -29,7 +29,6 @@ library
                        Taiji.Core.Network.External
                        Taiji.Core.Network.Utils
                        Taiji.Core.Ranking
-                       Taiji.Core.Config
                        -- Taiji.Extra
                        -- Taiji.Extra.Functions
 
@@ -42,7 +41,6 @@ library
                      , cereal
                      , containers
                      , clustering
-                     , data-default
                      , double-conversion
                      , deepseq
                      , unordered-containers
@@ -64,9 +62,6 @@ library
                      , vector
                      , vector-algorithms
                      , zlib
-                     , Taiji-ChIP-seq
-                     , Taiji-ATAC-seq
-                     , Taiji-RNA-seq
                      , Taiji-types
   default-language:    Haskell2010
 
@@ -82,10 +77,13 @@ executable taiji
   build-depends:       base
                      , lens
                      , SciFlow >= 0.6.1
+                     , data-default
+                     , bio-pipelines
                      , Taiji
                      , Taiji-ChIP-seq
                      , Taiji-ATAC-seq
                      , Taiji-RNA-seq
+                     , Taiji-scRNA-seq
                      , Taiji-types
   default-language:    Haskell2010
 

@@ -33,7 +33,6 @@ import Data.Vector.Algorithms.Search (binarySearch)
 
 import           Taiji.Core.Network
 import           Taiji.Core.Network.Utils
-import           Taiji.Core.Config                 ()
 import           Taiji.Types
 
 computeRanks :: ( ATACSeq S (File '[] 'Other, File '[] 'Other)

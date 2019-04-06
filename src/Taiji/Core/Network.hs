@@ -17,7 +17,6 @@ import Data.Ord (comparing)
 import qualified Data.HashMap.Strict as M
 import IGraph
 
-import           Taiji.Core.Config                 ()
 import           Taiji.Types
 import Taiji.Core.Network.DeNovo
 import Taiji.Core.Network.External

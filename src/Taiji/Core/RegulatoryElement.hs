@@ -34,7 +34,6 @@ import qualified Data.Vector             as V
 import           Scientific.Workflow     hiding (_data)
 import           Text.Printf             (printf)
 
-import           Taiji.Core.Config       ()
 import           Taiji.Types
 
 getHiCLoops :: [HiC N [Either SomeFile (SomeFile, SomeFile)]]

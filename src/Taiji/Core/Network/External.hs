@@ -15,7 +15,6 @@ import           Data.CaseInsensitive              (mk)
 import           Data.List.Ordered                 (nubSort)
 import qualified Data.HashMap.Strict                   as M
 
-import           Taiji.Core.Config                 ()
 import           Taiji.Types
 
 -- | Get nodes and edges from the external network file.

@@ -1,4 +1,4 @@
-resolver: nightly-2019-03-14
+resolver: nightly-2019-04-05
 
 packages:
 - '.'
@@ -6,28 +6,31 @@ packages:
 extra-deps:
 
 - git:     https://github.com/Taiji-pipeline/Taiji-types.git
-  commit:  9466d7f69977778f50bfdd60fd4fbf62a93dea7b
+  commit:  d6f6d01d72dafd993dc2d113ddc2732cae08d700
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
-  commit:  bd10c445832a3f3bdf82b57ddf1224397b78390b
+  commit:  482f4d1c2c57601327a581b8784d583987439229
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
-  commit:  3157224ccebae6b3ce26185a85b8093494878ed4
+  commit:  4c425bf96f392fb1f9098821f643895ef1226151
 
 - git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
   commit:  94c3de1a5e13e048d7cc5d53cc0295ca395ac1e7
 
-- git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
-  commit:  a39362a0fa6a27df4787e9e7d6aa942115f1eec7
-
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  41e4e96b0f6f18737e1ff6d03d007c7cea4f1a6a
+  commit:  c8f1576efe86c57355c4faf78e2e4b06ed2152c4
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ChIP-seq.git
   commit:  ad5cd2364c4f434e270b86ce004153ec17106d21
 
 - git:     https://github.com/kaizhang/haskell-igraph.git
   commit:  e9db8aad4ca005257a464a5eff0e5ff15aa761b2
+
+- git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
+  commit:  d67d2e8f7047d5e3098925ea11ed8b73c1ab3c4f
+
+- git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
+  commit:  09745616fa9b78ac148b59d9815b54b2d47df155
 
 - git:     https://github.com/kaizhang/bioinformatics-toolkit.git
   commit:  d1ce0f73c04c77edd674cad92904789f5fd46409

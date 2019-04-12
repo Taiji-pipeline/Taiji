@@ -70,6 +70,8 @@ instance DropSeqConfig TaijiConfig where
     _dropseq_annotation = fromJust . _taiji_annotation
     _dropseq_input = _taiji_input
     _dropseq_output_dir = (<> "/DropSeq") . _taiji_output_dir
+    _dropseq_cell_barcode_length _ = 12
+    _dropseq_molecular_barcode_length _ = 8
 
 mainWith defaultMainOpts
     { programHeader = printf "Taiji-v%s" $ showVersion version } $ do

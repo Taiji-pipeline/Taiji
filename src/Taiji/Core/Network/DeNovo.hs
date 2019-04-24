@@ -19,6 +19,7 @@ import           Bio.Pipeline.Utils                (getPath, asDir)
 import Control.Monad.State.Strict
 import           Bio.Data.Bed
 import           Conduit
+import Data.Conduit.Internal (zipSinks)
 import qualified Data.IntervalMap.Strict as IM
 import           Control.Lens                      hiding (pre, to)
 import qualified Data.Set as S
@@ -32,7 +33,6 @@ import           Data.Maybe                        (fromJust, mapMaybe)
 import qualified Data.Text                         as T
 import IGraph
 import           Scientific.Workflow               hiding (_data)
-import System.IO
 
 import Taiji.Core.Network.Utils
 import Taiji.Core.RegulatoryElement (findTargets)
@@ -64,38 +64,55 @@ createLinkage (atac, pro, enh, hic, expr) = do
             readBed' fl_pro
         activityEnh <- fmap (bedToTree max . map (\x -> (x, fromJust $ x^.npPvalue))) $
             readBed' fl_enh
-        withFile netEdges WriteMode $ \h1 -> withFile bindingEdges WriteMode $ \h2 -> do
-            B.hPutStrLn h1 ":START_ID,:END_ID,weight,:TYPE"
-            B.hPutStrLn h2 $ ":START_ID,:END_ID,chr,start:int,end:int," <>
-                "annotation,affinity,:TYPE"
-            let conduit = findTargets active_pro tfbs hic .|
-                    createLinkage_ activityPro activityEnh expr' .|
-                    mapM_C (liftIO . outputEdge h1 h2)
-            s <- execStateT (runConduit conduit) S.empty
-            let nodeHeader = "geneName:ID,expression,expressionZScore"
-            B.writeFile netNodes $ B.unlines $ (nodeHeader:) $
-                map nodeToLine $ S.toList s
+        let proc = findTargets active_pro tfbs hic .|
+                createLinkage_ activityPro activityEnh expr' .|
+                sinkLinkage netEdges bindingEdges
+        runResourceT (execStateT (runConduit proc) S.empty) >>=
+            outputNodes netNodes
     return $ atac & replicates.mapped.files .~
         ( emptyFile & location .~ netNodes
         , emptyFile & location .~ netEdges )
   where
-    outputEdge h1 h2 e = B.hPutStrLn hdl $ edgeToLine e
-      where
-        hdl = case _edge_type e of
-            Combined _ -> h1
-            Binding{..} -> h2
     fl_pro = either (^.location) (^.location) pro
     fl_enh = either (^.location) (^.location) enh
     (active_pro, tfbs) = atac^.replicates._2.files
     grp = atac^.groupName._Just
 {-# INLINE createLinkage #-}
 
-createLinkage_ :: BEDTree Double   -- ^ Promoter activities
+outputNodes :: FilePath -> S.Set NetNode -> IO ()
+outputNodes fl = B.writeFile fl . B.unlines . (nodeHeader:) .
+    map nodeToLine . S.toList
+  where
+    nodeHeader = "geneName:ID,expression,expressionZScore"
+{-# INLINE outputNodes #-}
+
+sinkLinkage :: MonadResource m
+            => FilePath
+            -> FilePath
+            -> ConduitT NetEdge Void (StateT (S.Set NetNode) m) ()
+sinkLinkage combined binding = zipSinks outputCombined outputBindSites >> return ()
+  where
+    outputCombined = filterC isCombined .|
+        (yield header >> mapC edgeToLine) .| unlinesAsciiC .| sinkFile combined
+      where
+        header = ":START_ID,:END_ID,weight,:TYPE"
+    outputBindSites = filterC (not . isCombined) .|
+        (yield header >> mapC edgeToLine) .| unlinesAsciiC .| sinkFile binding
+      where
+        header = ":START_ID,:END_ID,chr,start:int,end:int," <>
+            "annotation,affinity,:TYPE"
+    isCombined e = case _edge_type e of
+        Combined _ -> True
+        Binding{..} -> False
+{-# INLINE sinkLinkage #-}
+
+createLinkage_ :: Monad m
+               => BEDTree Double   -- ^ Promoter activities
                -> BEDTree Double   -- ^ Enhancer activities
                -> M.HashMap GeneName (Double, Double)   -- ^ Gene expression
                -> ConduitT (GeneName, ([BED], [BED]))
                            NetEdge
-                           (StateT (S.Set NetNode) IO) ()
+                           (StateT (S.Set NetNode) m) ()
 createLinkage_ act_pro act_enh expr = concatMapMC $ \(geneName, (ps, es)) -> do
     let tfEnhancer = M.toList $ fmap getBestMotif $ M.fromListWith (++) $
             mapMaybe (getWeight act_enh) es

@@ -17,12 +17,14 @@ import           Bio.Pipeline.Utils      (getPath)
 import           Bio.RealWorld.GENCODE
 import           Bio.Utils.Misc          (readInt)
 import           Conduit
+import Control.Arrow (second)
 import           Control.Lens
 import           Control.Monad.Reader    (asks)
 import qualified Data.ByteString.Char8   as B
 import           Data.Either             (lefts)
 import           Data.Function           (on)
 import qualified Data.IntervalMap.Strict as IM
+import qualified Data.HashMap.Strict as M
 import           Data.List               
 import           Data.List.Ordered       (nubSort)
 import           Data.Maybe              (fromJust, isNothing, mapMaybe)
@@ -67,19 +69,8 @@ findActivePromoters_ bed pro = runIdentity $ runConduit $ yieldMany pro .|
     intersectBed bed .| sinkList
 {-# INLINE findActivePromoters_ #-}
 
--- | Get a list of potential TSS from GTF file
-readPromoters :: FilePath -> IO [Promoter]
-readPromoters = (fmap . concatMap) fn . readGenes
-  where
-    fn Gene{..} = map g $ nubSort tss
-      where
-        g x | geneStrand = BEDExt (asBed geneChrom (max 0 $ x - 5000) (x + 1000)) geneName
-            | otherwise = BEDExt (asBed geneChrom (max 0 $ x - 1000) (x + 5000)) geneName
-        tss | geneStrand = geneLeft : map fst geneTranscripts
-            | otherwise = geneRight : map snd geneTranscripts
-{-# INLINE readPromoters #-}
 
-findTargets :: MonadIO m
+findTargets :: MonadResource m
             => File tag1 'Bed         -- ^ Active promoters
             -> File tag2 'Bed         -- ^ TFBS
             -> Maybe (File '[ChromosomeLoop] 'Bed)  -- ^ HiC loops
@@ -87,34 +78,50 @@ findTargets :: MonadIO m
 findTargets fl_pro fl_tfbs hic = do
     tfbs <- liftIO $ bedToTree (++) . map (\x -> (x, [x])) <$> readBed' (fl_tfbs^.location)
     promoters <- liftIO $ readBed' $ fl_pro^.location
-    let enhancers2D = getRegulatoryDomains 1000000 promoters
-    enhancers3D <- case hic of
-        Nothing -> return []
-        Just fl -> liftIO $ runResourceT $ runConduit $ read3DContact (fl^.location) .|
-            getContactingRegions promoters .| sinkList
-    let regions = groupRegions $
-            zip (repeat Promoter) (mergeDomains promoters) ++
-            zip (repeat Enhancer) (mergeDomains $ enhancers2D ++ enhancers3D)
-    yieldMany regions .| findTargets_ tfbs
-  where
-    groupRegions = groupBy ((==) `on` ((^._data) . snd)) .
-        sortBy (comparing ((^._data) . snd))
+    let chromLoops = case hic of
+            Nothing -> return ()
+            Just fl -> read3DContact (fl^.location)
+    chromLoops .| findTargets_ tfbs promoters
 
 findTargets_ :: Monad m
              => BEDTree [BED]   -- ^ TF binding sites
-             -> ConduitT [(DomainType, RegDomain)] (GeneName, ([BED], [BED])) m ()
-findTargets_ tfbs = mapC ( \xs ->
-    (snd (head xs) ^. _data, divide $ concat $ mapMaybe f xs) )
+             -> [Promoter] -- ^ A list of promoters
+             -> ConduitT (BED3, BED3)  -- Chromatin loops
+                    (GeneName, ([BED], [BED])) m ()
+findTargets_ tfbs promoters = getRegulaDomain promoters .|
+    mapC (second (divide . concat . mapMaybe f))
   where
     divide xs = let (a, b) = partition ((==Promoter) . fst) xs
                 in (snd $ unzip a, snd $ unzip b)
-    f (ty, region) = case IM.elems (intersecting tfbs region) of
+    f region = case IM.elems (intersecting tfbs (region^._bed)) of
         [] -> Nothing
-        xs -> Just $ zip (repeat ty) $ concat xs
+        xs -> Just $ zip (repeat $ region^._data) $ concat xs
 {-# INLINE findTargets_ #-}
 
+-- | The regulatory domain of a gene is the genomic regions possessing
+-- regulatory effects on the gene, such as promoters and enhancers.
+-- To find the regulatory domain, distal enhancers are first identified
+-- according to chromatin interactions. Then the promoter 
+getRegulaDomain :: Monad m
+                => [Promoter] -- ^ A list of promoters
+                -> ConduitT
+                       (BED3, BED3)  -- Chromatin loops
+                       (GeneName, [BEDExt BED3 DomainType])   -- Regulatory domains for each gene
+                       m ()
+getRegulaDomain inputRegions = do
+    enhancers3D <- getDistalDomain3D inputRegions .| sinkList
+    let enhancers = map (\x -> (x^._data, [BEDExt (x^._bed) Enhancer])) $
+            mergeDomains $ enhancers2D ++ enhancers3D
+        promoters = map (\x -> (x^._data, [BEDExt (x^._bed) Promoter])) $
+            mergeDomains inputRegions
+    yieldMany $ M.toList $ M.fromListWith (++) $ enhancers ++ promoters
+  where
+    enhancers2D = getDistalDomain2D 1000000 inputRegions
+{-# INLINE getRegulaDomain #-}
+
+
 -- | Merge 2D and 3D domains
-mergeDomains :: [RegDomain] -> [RegDomain]
+mergeDomains :: [BEDExt BED3 GeneName] -> [BEDExt BED3 GeneName]
 mergeDomains regions = runIdentity $ runConduit $ mergeBedWith f regions .|
     concatC .| sinkList
   where
@@ -126,11 +133,12 @@ mergeDomains regions = runIdentity $ runConduit $ mergeBedWith f regions .|
         in map (\x -> x & _data .~ nm) beds
 {-# INLINE mergeDomains #-}
 
--- | Given a gene list , compute the rulatory domain for each gene
-getRegulatoryDomains :: Int             -- ^ Extension length. A good default is 1M.
-                     -> [Promoter] -- ^ A list of promoters
-                     -> [RegDomain] -- ^ Regulatory domains
-getRegulatoryDomains ext genes
+-- | Compute the 2D distal domains (enhancer regions) for a list of genes.
+-- The regulatory domain doesn't cover genes' promoters.
+getDistalDomain2D :: Int             -- ^ Extension length. A good default is 1M.
+                  -> [Promoter] -- ^ A list of promoters
+                  -> [RegDomain] -- ^ Regulatory domains
+getDistalDomain2D ext genes
     | null genes = error "No gene available for domain assignment!"
     | otherwise = concat $ loop $ [Nothing] ++ map Just basal ++ [Nothing]
   where
@@ -151,12 +159,45 @@ getRegulatoryDomains ext genes
             | otherwise = max e $ min (e + ext) $ fromJust right ^. chromStart
     fn _ _ _ = undefined
     basal = V.toList $ fromSorted $ sortBed genes
-{-# INLINE getRegulatoryDomains #-}
+{-# INLINE getDistalDomain2D #-}
+
+-- | Compute the 3D distal domains (enhancer regions) for a list of genes.
+-- The regulatory domain doesn't cover genes' promoters.
+-- Input: Chromatin loops represented by pairs of interactng loci.
+getDistalDomain3D :: Monad m
+                  => [Promoter]   -- ^ Gene promoters
+                  -> ConduitT (BED3, BED3) RegDomain m ()
+getDistalDomain3D promoters =
+    let basal = bedToTree (++) $ flip map promoters $
+            \pro -> (pro^._bed, [pro^._data])
+     in concatMapC $ \(locA, locB) -> map (BEDExt locB) (intersect basal locA) ++
+            map (BEDExt locA) (intersect basal locB)
+  where
+    intersect t x = nubSort $ concat $ IM.elems $ intersecting t x
+{-# INLINE getDistalDomain3D #-}
+
+
+-------------------------------------------------------------------------------
+-- IO
+-------------------------------------------------------------------------------
+
+-- | Get a list of potential TSS from GTF file
+readPromoters :: FilePath -> IO [Promoter]
+readPromoters = (fmap . concatMap) fn . readGenes
+  where
+    fn Gene{..} = map g $ nubSort tss
+      where
+        g x | geneStrand = BEDExt (asBed geneChrom (max 0 $ x - 5000) (x + 1000)) geneName
+            | otherwise = BEDExt (asBed geneChrom (max 0 $ x - 1000) (x + 5000)) geneName
+        tss | geneStrand = geneLeft : map fst geneTranscripts
+            | otherwise = geneRight : map snd geneTranscripts
+{-# INLINE readPromoters #-}
 
 -- | Read 3D contacts from a file, where each line contains 6 fields separated
 -- by Tabs corresponding to 2 interacting loci. Example:
 -- chr1 [TAB] 11 [TAB] 100 [TAB] chr2 [TAB] 23 [TAB] 200
-read3DContact :: FilePath -> ConduitT i (BED3, BED3) (ResourceT IO) ()
+read3DContact :: MonadResource m
+              => FilePath -> ConduitT i (BED3, BED3) m ()
 read3DContact input = sourceFileBS input .| linesUnboundedAsciiC .| mapC f .|
     filterC g
   where
@@ -168,15 +209,3 @@ read3DContact input = sourceFileBS input .| linesUnboundedAsciiC .| mapC f .|
               | otherwise = False
 {-# INLINE read3DContact #-}
 
--- | Retrieve regions that contact with the gene's promoter.
-getContactingRegions :: Monad m
-                     => [Promoter]
-                     -> ConduitT (BED3, BED3) RegDomain m ()
-getContactingRegions promoters =
-    let basal = bedToTree (++) $ flip map promoters $
-            \pro -> (pro^._bed, [pro^._data])
-     in concatMapC $ \(locA, locB) -> map (BEDExt locB) (intersect basal locA) ++
-            map (BEDExt locA) (intersect basal locB)
-  where
-    intersect t x = nubSort $ concat $ IM.elems $ intersecting t x
-{-# INLINE getContactingRegions #-}

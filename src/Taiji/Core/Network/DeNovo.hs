@@ -1,5 +1,4 @@
 -- | Infer network de novo from data
-
 {-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -8,7 +7,7 @@
 
 module Taiji.Core.Network.DeNovo
     ( createLinkage
-    , mkNetwork
+    , readNetwork
     , readNodesAndEdges
     ) where
 
@@ -27,14 +26,15 @@ import           Control.Monad.Reader              (asks)
 import qualified Data.ByteString.Char8             as B
 import           Data.CaseInsensitive              (mk)
 import Data.Ord (comparing)
-import           Data.List                         (foldl', maximumBy)
+import Data.Function (on)
+import           Data.List
 import qualified Data.HashMap.Strict                   as M
-import           Data.Maybe                        (fromJust, mapMaybe)
+import           Data.Maybe                        (fromJust)
 import qualified Data.Text                         as T
 import IGraph
 import           Scientific.Workflow               hiding (_data)
 
-import Taiji.Core.Network.Utils
+import Taiji.Core.Utils
 import Taiji.Core.RegulatoryElement (findTargets)
 import           Taiji.Types
 import           Taiji.Constants (edge_weight_cutoff)
@@ -42,14 +42,13 @@ import           Taiji.Constants (edge_weight_cutoff)
 createLinkage :: ( ATACSeq S ( File tag1 'Bed         -- ^ Active promoters
                              , File tag2 'Bed         -- ^ TFBS
                              )
-                 , Either (File t1 'NarrowPeak) (File t2 'BroadPeak)  -- ^ promoter activity
-                 , Either (File t1 'NarrowPeak) (File t2 'BroadPeak)  -- ^ enhancer activity
+                 , File t1 'NarrowPeak  -- ^ promoter activity
                  , Maybe (File '[ChromosomeLoop] 'Bed)  -- ^ HiC loops
                  , Maybe (File '[] 'Tsv)          -- ^ Expression
                  )
               -> WorkflowConfig TaijiConfig
                     (ATACSeq S (File '[] 'Other, File '[] 'Other))
-createLinkage (atac, pro, enh, hic, expr) = do
+createLinkage (atac, pro, hic, expr) = do
     dir <- asks
         ((<> "/Network/" <> asDir (T.unpack grp)) . _taiji_output_dir)
         >>= getPath
@@ -60,12 +59,9 @@ createLinkage (atac, pro, enh, hic, expr) = do
         expr' <- case expr of
             Nothing -> return M.empty
             Just e -> readExpression 1 (B.pack $ T.unpack grp ) $ e^.location
-        activityPro <- fmap (bedToTree max . map (\x -> (x, fromJust $ x^.npPvalue))) $
-            readBed' fl_pro
-        activityEnh <- fmap (bedToTree max . map (\x -> (x, fromJust $ x^.npPvalue))) $
-            readBed' fl_enh
-        let proc = findTargets active_pro tfbs hic .|
-                createLinkage_ activityPro activityEnh expr' .|
+        activity <- fromNarrowPeak <$> readBed' fl_pro
+        tfbs <- runConduit $ readBed (tfbs_fl^.location) .| getTFBS activity
+        let proc = findTargets tfbs active_pro hic .| createLinkage_ expr' .|
                 sinkLinkage netEdges bindingEdges
         runResourceT (execStateT (runConduit proc) S.empty) >>=
             outputNodes netNodes
@@ -73,19 +69,86 @@ createLinkage (atac, pro, enh, hic, expr) = do
         ( emptyFile & location .~ netNodes
         , emptyFile & location .~ netEdges )
   where
-    fl_pro = either (^.location) (^.location) pro
-    fl_enh = either (^.location) (^.location) enh
-    (active_pro, tfbs) = atac^.replicates._2.files
+    fl_pro = pro^.location
+    (active_pro, tfbs_fl) = atac^.replicates._2.files
     grp = atac^.groupName._Just
 {-# INLINE createLinkage #-}
 
-outputNodes :: FilePath -> S.Set NetNode -> IO ()
-outputNodes fl = B.writeFile fl . B.unlines . (nodeHeader:) .
-    map nodeToLine . S.toList
+fromNarrowPeak :: [NarrowPeak] -> BEDTree PeakAffinity
+fromNarrowPeak = bedToTree max . map f
   where
-    nodeHeader = "geneName:ID,expression,expressionZScore"
-{-# INLINE outputNodes #-}
+    f x = let c = x^.chromStart + fromJust (x^.npPeak)
+              sc = toPeakAffinity $ fromJust $ x^.npPvalue
+          in (asBed (x^.chrom) (c-50) (c+50) :: BED3, sc)
 
+getTFBS :: Monad m
+        => BEDTree PeakAffinity  -- ^ Potential regulatory regions and its affinity scores
+        -> ConduitT BED o m (BEDTree [SiteInfo])
+getTFBS peaks = concatMapC f .| sinkList >>=
+    return . (fmap . fmap) nub' . bedToTree (++)
+  where
+    f site = case IM.elems (intersecting peaks site) of
+        [] -> Nothing
+        xs -> Just $ (bed, [SiteInfo (getTFName site) siteSc (maximum xs)])
+      where
+        bed = asBed (site^.chrom) (site^.chromStart) (site^.chromEnd) :: BED3
+        siteSc = toSiteAffinity (fromJust $ site^.score)
+    getTFName x = mk $ head $ B.split '+' $ x^.name._Just
+    nub' = M.elems . M.fromListWith (\a b -> if g a > g b then a else b) .
+        map (\x -> (_tf_name x, x))
+      where
+        g = getSiteAffinity . _site_affinity
+
+createLinkage_ :: Monad m
+               => M.HashMap GeneName (Double, Double)   -- ^ Gene expression
+               -> ConduitT (GeneName, ([TFBS], [TFBS]))
+                           NetEdge
+                           (StateT (S.Set NetNode) m) ()
+createLinkage_ expr = concatMapMC $ \(geneName, (ps, es)) -> do
+    let edgeEnhancer = mkEdges geneName "enhancer" es
+        edgePromoter = mkEdges geneName "promoter" ps
+        (geneExpr, scaledGeneExpr) = M.lookupDefault (0.1, 0) geneName expr
+        geneNode = NetNode { _node_name = geneName
+                           , _node_expression = Just geneExpr
+                           , _node_scaled_expression = Just scaledGeneExpr }
+    modify' $ S.insert geneNode
+    edgeCombined <- forM (groupEdgeByTF $ edgeEnhancer ++ edgePromoter) $ \xs -> do
+        let (tfExpr, scaledTfExpr) = M.lookupDefault (0.1, 0) tfName expr
+            tfNode = NetNode { _node_name = tfName
+                             , _node_expression = Just tfExpr
+                             , _node_scaled_expression = Just scaledTfExpr }
+            tfName = _edge_from $ head xs
+            wCombined = lp 2 $ map (_edge_binding_affinity . _edge_type) xs
+        modify' $ S.insert tfNode
+        return $ NetEdge { _edge_from = tfName
+                         , _edge_to = geneName
+                         , _edge_type = Combined (wCombined * sqrt tfExpr) }
+    return $ edgePromoter ++ edgeEnhancer ++ edgeCombined
+  where
+    mkEdges geneName anno = filter
+            ((>=edge_weight_cutoff) . _edge_binding_affinity . _edge_type) .
+            map siteToEdge
+      where
+        siteToEdge site = NetEdge
+            { _edge_from = _tf_name $ site^._data
+            , _edge_to = geneName
+            , _edge_type = Binding
+                { _edge_binding_locus = convert site
+                , _edge_binding_annotation = anno
+                , _edge_binding_affinity = getEdgeWeight site } }
+    groupEdgeByTF = groupBy ((==) `on` _edge_from) . sortBy (comparing _edge_from)
+    getEdgeWeight x = sqrt $ siteSc * peakSc
+      where
+        siteSc = getSiteAffinity $ _site_affinity $ x^._data
+        peakSc = getPeakAffinity $ _peak_affinity $ x^._data
+{-# INLINE createLinkage_ #-}
+
+
+--------------------------------------------------------------------------------
+-- IO related functions
+--------------------------------------------------------------------------------
+
+-- | Save the edge information to files.
 sinkLinkage :: MonadResource m
             => FilePath
             -> FilePath
@@ -106,78 +169,19 @@ sinkLinkage combined binding = zipSinks outputCombined outputBindSites >> return
         Binding{..} -> False
 {-# INLINE sinkLinkage #-}
 
-createLinkage_ :: Monad m
-               => BEDTree Double   -- ^ Promoter activities
-               -> BEDTree Double   -- ^ Enhancer activities
-               -> M.HashMap GeneName (Double, Double)   -- ^ Gene expression
-               -> ConduitT (GeneName, ([BED], [BED]))
-                           NetEdge
-                           (StateT (S.Set NetNode) m) ()
-createLinkage_ act_pro act_enh expr = concatMapMC $ \(geneName, (ps, es)) -> do
-    let tfEnhancer = M.toList $ fmap getBestMotif $ M.fromListWith (++) $
-            mapMaybe (getWeight act_enh) es
-        edgeEnhancer = flip concatMap tfEnhancer $ \(tfName, sites) ->
-            flip map sites $ \st -> NetEdge
-                { _edge_from = tfName
-                , _edge_to = geneName
-                , _edge_type = Binding
-                    { _edge_binding_locus = convert st
-                    , _edge_binding_annotation = "enhancer"
-                    , _edge_binding_affinity = fromJust $ st^.score }
-                }
-        tfPromoter = M.toList $ fmap getBestMotif $ M.fromListWith (++) $
-            mapMaybe (getWeight act_pro) ps
-        edgePromoter = flip concatMap tfPromoter $ \(tfName, sites) ->
-            flip map sites $ \st -> NetEdge
-                { _edge_from = tfName
-                , _edge_to = geneName
-                , _edge_type = Binding
-                    { _edge_binding_locus = convert st
-                    , _edge_binding_annotation = "promoter"
-                    , _edge_binding_affinity = fromJust $ st^.score }
-                }
-        tfs = M.toList $ fmap (lp 2 . map (fromJust . (^.score))) $
-            M.fromListWith (++) $ tfEnhancer ++ tfPromoter
-        (geneExpr, scaledGeneExpr) = M.lookupDefault (0.1, 0) geneName expr
-        geneNode = NetNode { _node_name = geneName
-                           , _node_expression = Just geneExpr
-                           , _node_scaled_expression = Just scaledGeneExpr }
-    modify' $ S.insert geneNode
-    edgeCombined <- forM tfs $ \(tfName, w) -> do
-        let (tfExpr, scaledTfExpr) = M.lookupDefault (0.1, 0) tfName expr
-            tfNode = NetNode { _node_name = tfName
-                             , _node_expression = Just tfExpr
-                             , _node_scaled_expression = Just scaledTfExpr }
-        modify' $ S.insert tfNode
-        return $ NetEdge { _edge_from = tfName
-                         , _edge_to = geneName
-                         , _edge_type = Combined (w * sqrt tfExpr) }
-    return $ edgePromoter ++ edgeEnhancer ++ edgeCombined
+-- | Save the node information to a file.
+outputNodes :: FilePath -> S.Set NetNode -> IO ()
+outputNodes fl = B.writeFile fl . B.unlines . (nodeHeader:) .
+    map nodeToLine . S.toList
   where
-    getBestMotif xs = runIdentity $ runConduit $
-        mergeBedWith (maximumBy (comparing (^.score))) xs .| sinkList
-    getWeight act bed = case IM.elems (intersecting act bed) of
-        [] -> Nothing
-        xs -> let p = transform_peak_height $ maximum xs
-                  w = sqrt $ transform_site_pvalue (fromJust $ bed^.score) * p
-              in if w < edge_weight_cutoff
-                then Nothing else Just (getTFName bed, [bed & score .~ Just w])
-    getTFName x = mk $ head $ B.split '+' $ x^.name._Just
-    transform_peak_height x = 1 / (1 + exp (-(x - 5)))
-    transform_site_pvalue x' = 1 / (1 + exp (-(x - 5)))
-      where
-        x = negate $ logBase 10 $ max 1e-20 x'
-{-# INLINE createLinkage_ #-}
-
-lp :: Int -> [Double] -> Double
-lp p = (**(1/fromIntegral p)) . foldl' (+) 0 . map (**fromIntegral p)
-{-# INLINE lp #-}
+    nodeHeader = "geneName:ID,expression,expressionZScore"
+{-# INLINE outputNodes #-}
 
 -- | Build the network from files containing the information of nodes and edges.
-mkNetwork :: FilePath  -- ^ nodes
-          -> FilePath  -- ^ edges
-          -> IO (Graph 'D NetNode Double)
-mkNetwork nodeFl edgeFl = do
+readNetwork :: FilePath  -- ^ nodes
+            -> FilePath  -- ^ edges
+            -> IO (Graph 'D NetNode Double)
+readNetwork nodeFl edgeFl = do
     nodeMap <- M.fromList . map ((_node_name &&& id) . nodeFromLine) .
         tail . B.lines <$> B.readFile nodeFl
     runResourceT $ fromLabeledEdges' edgeFl (toEdge nodeMap)
@@ -190,7 +194,7 @@ mkNetwork nodeFl edgeFl = do
               , readDouble f3 )
           where
             [f1,f2,f3,_] = B.split ',' l
-{-# INLINE mkNetwork #-}
+{-# INLINE readNetwork #-}
 
 -- | Read network files as nodes and edges
 readNodesAndEdges :: FilePath   -- ^ nodes
@@ -204,3 +208,4 @@ readNodesAndEdges nodeFl edgeFl = do
     f l = ( ( mk f2, mk f1), readDouble f3 )
         where
         [f1,f2,f3,_] = B.split ',' l
+

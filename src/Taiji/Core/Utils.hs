@@ -1,8 +1,22 @@
-module Taiji.Core.Network.Utils where
+module Taiji.Core.Utils
+    ( SiteAffinity
+    , toSiteAffinity
+    , getSiteAffinity
+    , PeakAffinity
+    , toPeakAffinity
+    , getPeakAffinity
+    , SiteInfo(..)
+    , TFBS
+    , readExpression
+    , lp
+    ) where
 
 import qualified Data.HashMap.Strict     as M
 import qualified Data.ByteString.Char8   as B
 import qualified Data.Vector.Unboxed as U
+import           Data.CaseInsensitive              (CI)
+import Bio.Data.Bed
+import Data.List (foldl')
 import           Data.CaseInsensitive    (mk)
 import           Data.Maybe              (fromMaybe)
 import           Bio.Utils.Misc          (readDouble)
@@ -10,6 +24,34 @@ import           Bio.Utils.Functions               (scale)
 import qualified Data.Matrix.Unboxed               as MU
 
 import           Taiji.Types
+
+-- | Affinity score of a TF binding site, from 0 to 1.
+newtype SiteAffinity = SiteAffinity
+    { getSiteAffinity :: Double } deriving (Ord, Eq)
+
+-- | Convert p-value to affinity score [0,1].
+toSiteAffinity :: Double -> SiteAffinity
+toSiteAffinity x' = SiteAffinity $ 1 / (1 + exp (-(x - 5)))
+    where
+      x = negate $ logBase 10 $ max 1e-20 x'
+{-# INLINE toSiteAffinity #-}
+
+-- | Affinity score of a peak, from 0 to 1.
+newtype PeakAffinity = PeakAffinity
+    { getPeakAffinity :: Double } deriving (Ord, Eq)
+
+-- | Convert p-value to affinity score [0,1].
+toPeakAffinity :: Double -> PeakAffinity
+toPeakAffinity x = PeakAffinity $ 1 / (1 + exp (-(x - 5)))
+{-# INLINE toPeakAffinity #-}
+
+data SiteInfo = SiteInfo
+    { _tf_name :: CI B.ByteString
+    , _site_affinity :: SiteAffinity
+    , _peak_affinity :: PeakAffinity }
+
+type TFBS = BEDExt BED3 SiteInfo
+
 
 -- | Read RNA expression data
 readExpression :: Double    -- ^ Threshold to call a gene as non-expressed
@@ -36,3 +78,7 @@ readExpression cutoff ct fl = do
         | U.all (== U.head xs) xs = U.replicate (U.length xs) 0
         | otherwise = scale xs
 {-# INLINE readExpression #-}
+
+lp :: Int -> [Double] -> Double
+lp p = (**(1/fromIntegral p)) . foldl' (+) 0 . map (**fromIntegral p)
+{-# INLINE lp #-}

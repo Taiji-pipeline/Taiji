@@ -15,13 +15,11 @@ import Data.Maybe
 import qualified Taiji.Core             as Core
 import qualified Taiji.Pipeline.ATACSeq as ATACSeq
 import qualified Taiji.Pipeline.SC.ATACSeq as SCATACSeq
-import qualified Taiji.Pipeline.ChIPSeq as ChIPSeq
 import qualified Taiji.Pipeline.RNASeq as RNASeq
 import qualified Taiji.Pipeline.SC.DropSeq as DropSeq
 
 import           Taiji.Pipeline.ATACSeq.Types (ATACSeqConfig (..))
 import           Taiji.Pipeline.SC.ATACSeq.Types (SCATACSeqConfig (..))
-import           Taiji.Pipeline.ChIPSeq.Config        (ChIPSeqConfig (..))
 import           Taiji.Pipeline.RNASeq.Config (RNASeqConfig (..))
 import           Taiji.Pipeline.SC.DropSeq.Types (DropSeqConfig (..))
 
@@ -49,13 +47,6 @@ instance SCATACSeqConfig TaijiConfig where
                                    & cutoff .~ PValue 0.01
                                    & callSummits .~ True
 
-instance ChIPSeqConfig TaijiConfig where
-    _chipseq_output_dir = (<> "/ChIPSeq") . _taiji_output_dir
-    _chipseq_input = _taiji_input
-    _chipseq_bwa_index = fmap (++ "/genome.fa") . _taiji_bwa_index
-    _chipseq_genome_fasta = _taiji_genome
-    _chipseq_genome_index = _taiji_genome_index
-
 instance RNASeqConfig TaijiConfig where
     _rnaseq_genome_fasta = _taiji_genome
     _rnaseq_star_index = _taiji_star_index
@@ -80,11 +71,9 @@ mainWith defaultMainOpts
         namespace "DropSeq" DropSeq.builder
         namespace "ATAC" ATACSeq.builder
         namespace "SCATAC" SCATACSeq.builder
-        namespace "H3K27ac" $ ChIPSeq.inputReader "H3K27ac"
-        namespace "H3K27ac" ChIPSeq.builder
         Core.builder
         path ["ATAC_Get_Peak", "Find_Active_Promoter"]
         [ "Find_Active_Promoter", "ATAC_Get_TFBS", "ATAC_Get_Peak"
-            , "H3K27ac_Get_Peak", "HiC_Read_Input", "RNA_Make_Expr_Table"
+            , "HiC_Read_Input", "RNA_Make_Expr_Table"
             ] ~> "Create_Linkage_Prep"
         ["Create_Linkage", "RNA_Make_Expr_Table"] ~> "Compute_Ranks_Prep"

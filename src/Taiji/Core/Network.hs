@@ -6,7 +6,7 @@
 
 module Taiji.Core.Network
     ( combineNetwork
-    , mkNetwork
+    , readNetwork
     , readNodesAndEdges
     , createLinkage
     , getExternalLinks

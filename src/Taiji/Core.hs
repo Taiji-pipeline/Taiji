@@ -24,11 +24,10 @@ import           Taiji.Types                  (_taiji_input)
 aggregate :: ( [ATACSeq S f1]   -- ^ Active promoters
              , [ATACSeq S f2]   -- ^ TFBS
              , [ATACSeq S f3]   -- ^ peaks for promoter
-             , [ChIPSeq S (Either f3 f4)]   -- ^ peaks for enhancer
-             , [HiC S f5]  -- ^ HiC loops
+             , [HiC S f4]  -- ^ HiC loops
              , Maybe (File '[] 'Tsv) )         -- ^ Expression
-          -> IO [ (ATACSeq S (f1, f2), Either f3 f4, Either f3 f4, Maybe f5, Maybe (File '[] 'Tsv)) ]
-aggregate (activePro, tfbs, atac_peaks, chip_peaks, hic, expr) = do
+          -> IO [ (ATACSeq S (f1, f2), f3, Maybe f4, Maybe (File '[] 'Tsv)) ]
+aggregate (activePro, tfbs, atac_peaks, hic, expr) = do
     grps <- case expr of
         Nothing -> return Nothing
         Just fl -> Just . map (T.pack . B.unpack) . tail . B.split '\t' .
@@ -36,18 +35,16 @@ aggregate (activePro, tfbs, atac_peaks, chip_peaks, hic, expr) = do
     return $ flip mapMaybe activePro $ \e ->
         let grp = e^.groupName._Just
             pro = M.findWithDefault undefined grp atacFileMap
-            enh = M.findWithDefault pro grp chipFileMap
             hic' = M.lookup grp hicFileMap
             e' = e & replicates.mapped.files %~ (\f -> (f, fromJust $ M.lookup grp tfbsMap))
         in case grps of
-            Nothing -> Just (e', pro, enh, hic', expr)
+            Nothing -> Just (e', pro, hic', expr)
             Just grps' -> if grp `elem` grps'
-                then Just (e', pro, enh, hic', expr)
+                then Just (e', pro, hic', expr)
                 else Nothing
   where
     tfbsMap = M.fromList $ map getFile tfbs
-    atacFileMap = fmap Left $ M.fromList $ map getFile atac_peaks
-    chipFileMap = M.fromList $ map getFile chip_peaks
+    atacFileMap = M.fromList $ map getFile atac_peaks
     hicFileMap = M.fromList $ map getFile hic
     getFile x = (x^.groupName._Just, x^.replicates._2.files)
 

@@ -1,5 +1,5 @@
 name:                Taiji
-version:             1.0.0.1
+version:             1.0.0.2
 synopsis:            all-in-one bioinformatics analysis pipeline
 description:         all-in-one bioinformatics analysis pipeline
 homepage:            https://taiji-pipeline.github.io/
@@ -27,8 +27,8 @@ library
                        Taiji.Core.Network
                        Taiji.Core.Network.DeNovo
                        Taiji.Core.Network.External
-                       Taiji.Core.Network.Utils
                        Taiji.Core.Ranking
+                       Taiji.Core.Utils
                        -- Taiji.Extra
                        -- Taiji.Extra.Functions
 
@@ -80,7 +80,6 @@ executable taiji
                      , data-default
                      , bio-pipelines
                      , Taiji
-                     , Taiji-ChIP-seq
                      , Taiji-ATAC-seq
                      , Taiji-RNA-seq
                      , Taiji-scRNA-seq

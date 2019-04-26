@@ -20,9 +20,6 @@ extra-deps:
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
   commit:  d6fee4363b8e2d1ad8b023754ffebd4418930016
 
-- git:     https://github.com/Taiji-pipeline/Taiji-ChIP-seq.git
-  commit:  ad5cd2364c4f434e270b86ce004153ec17106d21
-
 - git:     https://github.com/kaizhang/haskell-igraph.git
   commit:  e9db8aad4ca005257a464a5eff0e5ff15aa761b2
 

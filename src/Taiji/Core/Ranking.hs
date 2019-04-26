@@ -32,7 +32,7 @@ import           Scientific.Workflow               hiding (_data)
 import Data.Vector.Algorithms.Search (binarySearch)
 
 import           Taiji.Core.Network
-import           Taiji.Core.Network.Utils
+import           Taiji.Core.Utils
 import           Taiji.Types
 
 computeRanks :: ( ATACSeq S (File '[] 'Other, File '[] 'Other)
@@ -41,7 +41,7 @@ computeRanks :: ( ATACSeq S (File '[] 'Other, File '[] 'Other)
 computeRanks (atac, exprFl) = do
     maybeNet <- asks _taiji_external_network
     gr <- liftIO $ case maybeNet of
-        Nothing -> mkNetwork (nodeFl^.location) $ edgeFl^.location
+        Nothing -> readNetwork (nodeFl^.location) $ edgeFl^.location
         Just net -> do
             expr <- fromMaybe (return M.empty) $ fmap
                 (readExpression 1 (B.pack $ T.unpack grp) . (^.location)) exprFl

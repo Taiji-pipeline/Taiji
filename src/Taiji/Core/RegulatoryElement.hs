@@ -11,7 +11,7 @@ module Taiji.Core.RegulatoryElement
     ) where
 
 import           Bio.Data.Bed
-import           Bio.Data.Bed.Types (fromSorted)
+import           Bio.Data.Bed.Types (BED3(..), fromSorted)
 import           Bio.Data.Experiment
 import           Bio.Pipeline.Utils      (getPath)
 import           Bio.RealWorld.GENCODE
@@ -23,11 +23,11 @@ import           Control.Monad.Reader    (asks)
 import qualified Data.ByteString.Char8   as B
 import           Data.Either             (lefts)
 import           Data.Function           (on)
-import qualified Data.IntervalMap.Strict as IM
+import qualified Data.IntervalMap.Generic.Strict as IM
 import qualified Data.HashMap.Strict as M
 import           Data.List               
 import           Data.List.Ordered       (nubSort)
-import           Data.Maybe              (fromJust, isNothing, mapMaybe)
+import           Data.Maybe              (fromJust, isNothing)
 import           Data.Monoid             ((<>))
 import           Data.Ord
 import           Data.Singletons         (SingI)
@@ -37,6 +37,7 @@ import           Scientific.Workflow     hiding (_data)
 import           Text.Printf             (printf)
 
 import           Taiji.Types
+import           Taiji.Core.Utils
 
 getHiCLoops :: [HiC N [Either SomeFile (SomeFile, SomeFile)]]
             -> [HiC S (File '[ChromosomeLoop] 'Bed)]
@@ -71,31 +72,34 @@ findActivePromoters_ bed pro = runIdentity $ runConduit $ yieldMany pro .|
 
 
 findTargets :: MonadResource m
-            => File tag1 'Bed         -- ^ Active promoters
-            -> File tag2 'Bed         -- ^ TFBS
+            => BEDTree [SiteInfo]   -- ^ TF binding sites
+            -> File tag1 'Bed         -- ^ Active promoters
             -> Maybe (File '[ChromosomeLoop] 'Bed)  -- ^ HiC loops
-            -> ConduitT () (GeneName, ([BED], [BED])) m ()
-findTargets fl_pro fl_tfbs hic = do
-    tfbs <- liftIO $ bedToTree (++) . map (\x -> (x, [x])) <$> readBed' (fl_tfbs^.location)
+            -> ConduitT () (GeneName, ([TFBS], [TFBS])) m ()
+findTargets tfbs fl_pro hic = do
     promoters <- liftIO $ readBed' $ fl_pro^.location
     let chromLoops = case hic of
             Nothing -> return ()
             Just fl -> read3DContact (fl^.location)
     chromLoops .| findTargets_ tfbs promoters
 
+
 findTargets_ :: Monad m
-             => BEDTree [BED]   -- ^ TF binding sites
+             => BEDTree [SiteInfo]   -- ^ TF binding sites
              -> [Promoter] -- ^ A list of promoters
              -> ConduitT (BED3, BED3)  -- Chromatin loops
-                    (GeneName, ([BED], [BED])) m ()
+                    (GeneName, ([TFBS], [TFBS])) m ()
 findTargets_ tfbs promoters = getRegulaDomain promoters .|
-    mapC (second (divide . concat . mapMaybe f))
+    mapC (second (divide . concatMap f))
   where
     divide xs = let (a, b) = partition ((==Promoter) . fst) xs
                 in (snd $ unzip a, snd $ unzip b)
-    f region = case IM.elems (intersecting tfbs (region^._bed)) of
-        [] -> Nothing
-        xs -> Just $ zip (repeat $ region^._data) $ concat xs
+    f region = zip (repeat $ region^._data) $ concatMap mkTFBS $ IM.toList $
+        intersecting tfbs $ region^._bed
+      where
+        mkTFBS (x, s) = let bed = BED3 (region^.chrom) (IM.lowerBound x)
+                                (IM.upperBound x)
+                        in zipWith BEDExt (repeat bed) s
 {-# INLINE findTargets_ #-}
 
 -- | The regulatory domain of a gene is the genomic regions possessing

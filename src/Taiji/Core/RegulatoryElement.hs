@@ -8,18 +8,18 @@ module Taiji.Core.RegulatoryElement
     ( getHiCLoops
     , findActivePromoters
     , findTargets
+    , read3DContact
+    , readPromoters
     ) where
 
 import           Bio.Data.Bed
 import           Bio.Data.Bed.Types (BED3(..), fromSorted)
 import           Bio.Data.Experiment
-import           Bio.Pipeline.Utils      (getPath)
 import           Bio.RealWorld.GENCODE
 import           Bio.Utils.Misc          (readInt)
 import           Conduit
 import Control.Arrow (second)
 import           Control.Lens
-import           Control.Monad.Reader    (asks)
 import qualified Data.ByteString.Char8   as B
 import           Data.Either             (lefts)
 import           Data.Function           (on)
@@ -28,13 +28,8 @@ import qualified Data.HashMap.Strict as M
 import           Data.List               
 import           Data.List.Ordered       (nubSort)
 import           Data.Maybe              (fromJust, isNothing)
-import           Data.Monoid             ((<>))
 import           Data.Ord
-import           Data.Singletons         (SingI)
-import qualified Data.Text               as T
 import qualified Data.Vector             as V
-import           Scientific.Workflow     hiding (_data)
-import           Text.Printf             (printf)
 
 import           Taiji.Types
 import           Taiji.Core.Utils
@@ -47,49 +42,20 @@ getHiCLoops inputs = concatMap split $ concatMap split $
     f fls = map fromSomeFile $
         filter (\x -> ChromosomeLoop `elem` getFileTags x) $ lefts fls
 
-findActivePromoters :: SingI tags
-                    => ATACSeq S (File tags 'NarrowPeak)
-                    -> WorkflowConfig TaijiConfig (ATACSeq S (File tags 'Bed))
-findActivePromoters input = do
-    anno <- fromJust <$> asks _taiji_annotation
-    dir <- asks ((<> "/Promoters") . _taiji_output_dir) >>= getPath
-    let output = printf "%s/%s_rep%d_active_promoters.bed" dir
-            (T.unpack $ input^.eid) (input^.replicates._1)
-    input & replicates.traverse.files %%~ liftIO . ( \fl -> do
-        peaks <- readBed' $ fl^.location :: IO [BED3]
-        pro <- readPromoters anno
-        writeBed' output $ findActivePromoters_ peaks pro
-        return $ location .~ output $ emptyFile
-        )
-
-findActivePromoters_ :: BEDLike b
-                     => [b]        -- ^ Promoter activity indicator
-                     -> [Promoter]
-                     -> [Promoter]
-findActivePromoters_ bed pro = runIdentity $ runConduit $ yieldMany pro .|
+findActivePromoters :: BEDLike b
+                    => [b]        -- ^ Promoter activity indicator
+                    -> [Promoter]
+                    -> [Promoter]
+findActivePromoters bed pro = runIdentity $ runConduit $ yieldMany pro .|
     intersectBed bed .| sinkList
-{-# INLINE findActivePromoters_ #-}
+{-# INLINE findActivePromoters #-}
 
-
-findTargets :: MonadResource m
+findTargets :: Monad m
             => BEDTree [SiteInfo]   -- ^ TF binding sites
-            -> File tag1 'Bed         -- ^ Active promoters
-            -> Maybe (File '[ChromosomeLoop] 'Bed)  -- ^ HiC loops
-            -> ConduitT () (GeneName, ([TFBS], [TFBS])) m ()
-findTargets tfbs fl_pro hic = do
-    promoters <- liftIO $ readBed' $ fl_pro^.location
-    let chromLoops = case hic of
-            Nothing -> return ()
-            Just fl -> read3DContact (fl^.location)
-    chromLoops .| findTargets_ tfbs promoters
-
-
-findTargets_ :: Monad m
-             => BEDTree [SiteInfo]   -- ^ TF binding sites
-             -> [Promoter] -- ^ A list of promoters
-             -> ConduitT (BED3, BED3)  -- Chromatin loops
-                    (GeneName, ([TFBS], [TFBS])) m ()
-findTargets_ tfbs promoters = getRegulaDomain promoters .|
+            -> [Promoter] -- ^ A list of promoters
+            -> ConduitT (BED3, BED3)  -- Chromatin loops
+                   (GeneName, ([TFBS], [TFBS])) m ()
+findTargets tfbs promoters = getRegulaDomain promoters .|
     mapC (second (divide . concatMap f))
   where
     divide xs = let (a, b) = partition ((==Promoter) . fst) xs
@@ -100,7 +66,7 @@ findTargets_ tfbs promoters = getRegulaDomain promoters .|
         mkTFBS (x, s) = let bed = BED3 (region^.chrom) (IM.lowerBound x)
                                 (IM.upperBound x)
                         in zipWith BEDExt (repeat bed) s
-{-# INLINE findTargets_ #-}
+{-# INLINE findTargets #-}
 
 -- | The regulatory domain of a gene is the genomic regions possessing
 -- regulatory effects on the gene, such as promoters and enhancers.
@@ -174,10 +140,10 @@ getDistalDomain3D :: Monad m
 getDistalDomain3D promoters =
     let basal = bedToTree (++) $ flip map promoters $
             \pro -> (pro^._bed, [pro^._data])
-     in concatMapC $ \(locA, locB) -> map (BEDExt locB) (intersect basal locA) ++
-            map (BEDExt locA) (intersect basal locB)
+     in concatMapC $ \(locA, locB) -> map (BEDExt locB) (getOverlap basal locA) ++
+            map (BEDExt locA) (getOverlap basal locB)
   where
-    intersect t x = nubSort $ concat $ IM.elems $ intersecting t x
+    getOverlap t x = nubSort $ concat $ IM.elems $ intersecting t x
 {-# INLINE getDistalDomain3D #-}
 
 

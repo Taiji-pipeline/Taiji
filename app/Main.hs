@@ -66,14 +66,19 @@ instance DropSeqConfig TaijiConfig where
 
 mainWith defaultMainOpts
     { programHeader = printf "Taiji-v%s" $ showVersion version } $ do
+        Core.builder
+
         namespace "RNA" $ RNASeq.inputReader "RNA-seq"
         namespace "RNA" RNASeq.builder
-        namespace "DropSeq" DropSeq.builder
         namespace "ATAC" ATACSeq.builder
-        namespace "SCATAC" SCATACSeq.builder
-        Core.builder
-        path ["ATAC_Get_Peak", "Find_Active_Promoter"]
-        [ "Find_Active_Promoter", "ATAC_Get_TFBS", "ATAC_Get_Peak"
-            , "HiC_Read_Input", "RNA_Make_Expr_Table"
-            ] ~> "Create_Linkage_Prep"
+
+        [ "ATAC_Get_TFBS", "ATAC_Get_Peak", "HiC_Read_Input"
+            , "RNA_Make_Expr_Table" ] ~> "Create_Linkage_Prep"
         ["Create_Linkage", "RNA_Make_Expr_Table"] ~> "Compute_Ranks_Prep"
+
+        namespace "SCATAC" SCATACSeq.builder
+        namespace "DropSeq" DropSeq.builder
+
+        [ "SCATAC_Find_TFBS", "SCATAC_Make_CutSite_Index",
+            "DropSeq_Quantification" ] ~> "Compute_Ranks_SC_Prep"
+

@@ -38,8 +38,8 @@ mkNode :: M.HashMap GeneName (Double, Double)  -- ^ Gene expression
        -> GeneName
        -> NetNode
 mkNode expr nd = NetNode { _node_name = nd
-                         , _node_expression = Just ndExpr
-                         , _node_scaled_expression = Just scaledNdExpr }
+                         , _node_weight = exp scaledNdExpr
+                         , _node_expression = Just ndExpr }
   where
     (ndExpr, scaledNdExpr) = M.lookupDefault (0.1, 0) nd expr
 {-# INLINE mkNode #-}

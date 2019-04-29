@@ -7,11 +7,16 @@
 
 module Taiji.Core.Network.DeNovo
     ( createLinkage
+    , createLinkage_
     , readNetwork
     , readNodesAndEdges
+    , getTFBS
+    , outputBindingEdges
+    , outputCombinedEdges
+    , outputNodes
     ) where
 
-import Control.Arrow ((&&&))
+import Control.Arrow ((&&&), second)
 import           Bio.Utils.Misc                    (readDouble)
 import           Bio.Data.Experiment
 import           Bio.Pipeline.Utils                (getPath, asDir)
@@ -35,43 +40,48 @@ import IGraph
 import           Scientific.Workflow               hiding (_data)
 
 import Taiji.Core.Utils
-import Taiji.Core.RegulatoryElement (findTargets)
+import Taiji.Core.RegulatoryElement
 import           Taiji.Types
 import           Taiji.Constants (edge_weight_cutoff)
 
-createLinkage :: ( ATACSeq S ( File tag1 'Bed         -- ^ Active promoters
-                             , File tag2 'Bed         -- ^ TFBS
-                             )
+createLinkage :: ( ATACSeq S (File tag2 'Bed)         -- ^ TFBS
                  , File t1 'NarrowPeak  -- ^ promoter activity
                  , Maybe (File '[ChromosomeLoop] 'Bed)  -- ^ HiC loops
                  , Maybe (File '[] 'Tsv)          -- ^ Expression
                  )
               -> WorkflowConfig TaijiConfig
                     (ATACSeq S (File '[] 'Other, File '[] 'Other))
-createLinkage (atac, pro, hic, expr) = do
+createLinkage (tfFl, peakFl, hicFl, expr) = do
     dir <- asks
         ((<> "/Network/" <> asDir (T.unpack grp)) . _taiji_output_dir)
         >>= getPath
+    anno <- fromJust <$> asks _taiji_annotation
     let netEdges = dir ++ "/edges_combined.csv"
         netNodes = dir ++ "/nodes.csv"
         bindingEdges = dir ++ "/edges_binding.csv"
     liftIO $ do
+        openSites <- readBed $ peakFl ^.location
         expr' <- case expr of
             Nothing -> return M.empty
             Just e -> readExpression 1 (B.pack $ T.unpack grp ) $ e^.location
-        activity <- fromNarrowPeak <$> readBed' fl_pro
-        tfbs <- runConduit $ readBed (tfbs_fl^.location) .| getTFBS activity
-        let proc = findTargets tfbs active_pro hic .| createLinkage_ expr' .|
-                sinkLinkage netEdges bindingEdges
+        tfbs <- runResourceT $ runConduit $ streamBed (tfFl^.replicates._2.files.location) .|
+            getTFBS (fromNarrowPeak openSites)
+        promoters <- findActivePromoters openSites <$> readPromoters anno 
+
+        let proc = loops .| findTargets tfbs promoters .|
+                createLinkage_ (fmap (second exp) expr') .|
+                zipSinks (outputCombinedEdges netEdges)
+                (outputBindingEdges bindingEdges)
+            loops = case hicFl of
+                Nothing -> return ()
+                Just fl -> read3DContact $ fl^.location
         runResourceT (execStateT (runConduit proc) S.empty) >>=
             outputNodes netNodes
-    return $ atac & replicates.mapped.files .~
+    return $ tfFl & replicates.mapped.files .~
         ( emptyFile & location .~ netNodes
         , emptyFile & location .~ netEdges )
   where
-    fl_pro = pro^.location
-    (active_pro, tfbs_fl) = atac^.replicates._2.files
-    grp = atac^.groupName._Just
+    grp = tfFl^.groupName._Just
 {-# INLINE createLinkage #-}
 
 fromNarrowPeak :: [NarrowPeak] -> BEDTree PeakAffinity
@@ -107,16 +117,16 @@ createLinkage_ :: Monad m
 createLinkage_ expr = concatMapMC $ \(geneName, (ps, es)) -> do
     let edgeEnhancer = mkEdges geneName "enhancer" es
         edgePromoter = mkEdges geneName "promoter" ps
-        (geneExpr, scaledGeneExpr) = M.lookupDefault (0.1, 0) geneName expr
+        (geneExpr, scaledGeneExpr) = M.lookupDefault (0.1, 1) geneName expr
         geneNode = NetNode { _node_name = geneName
-                           , _node_expression = Just geneExpr
-                           , _node_scaled_expression = Just scaledGeneExpr }
+                           , _node_weight = scaledGeneExpr
+                           , _node_expression = Just geneExpr }
     modify' $ S.insert geneNode
     edgeCombined <- forM (groupEdgeByTF $ edgeEnhancer ++ edgePromoter) $ \xs -> do
-        let (tfExpr, scaledTfExpr) = M.lookupDefault (0.1, 0) tfName expr
+        let (tfExpr, scaledTfExpr) = M.lookupDefault (0.1, 1) tfName expr
             tfNode = NetNode { _node_name = tfName
-                             , _node_expression = Just tfExpr
-                             , _node_scaled_expression = Just scaledTfExpr }
+                             , _node_weight = scaledTfExpr
+                             , _node_expression = Just tfExpr }
             tfName = _edge_from $ head xs
             wCombined = lp 2 $ map (_edge_binding_affinity . _edge_type) xs
         modify' $ S.insert tfNode
@@ -149,25 +159,29 @@ createLinkage_ expr = concatMapMC $ \(geneName, (ps, es)) -> do
 --------------------------------------------------------------------------------
 
 -- | Save the edge information to files.
-sinkLinkage :: MonadResource m
-            => FilePath
-            -> FilePath
-            -> ConduitT NetEdge Void (StateT (S.Set NetNode) m) ()
-sinkLinkage combined binding = zipSinks outputCombined outputBindSites >> return ()
+outputBindingEdges :: MonadResource m
+                   => FilePath -> ConduitT NetEdge Void m ()
+outputBindingEdges output = filterC isBinding .|
+    (yield header >> mapC edgeToLine) .| unlinesAsciiC .| sinkFile output
   where
-    outputCombined = filterC isCombined .|
-        (yield header >> mapC edgeToLine) .| unlinesAsciiC .| sinkFile combined
-      where
-        header = ":START_ID,:END_ID,weight,:TYPE"
-    outputBindSites = filterC (not . isCombined) .|
-        (yield header >> mapC edgeToLine) .| unlinesAsciiC .| sinkFile binding
-      where
-        header = ":START_ID,:END_ID,chr,start:int,end:int," <>
-            "annotation,affinity,:TYPE"
+    header = ":START_ID,:END_ID,chr,start:int,end:int," <>
+        "annotation,affinity,:TYPE"
+    isBinding e = case _edge_type e of
+        Binding{..} -> True
+        _ -> False
+{-# INLINE outputBindingEdges #-}
+
+-- | Save the edge information to files.
+outputCombinedEdges :: MonadResource m
+                    => FilePath -> ConduitT NetEdge Void m ()
+outputCombinedEdges output = filterC isCombined .|
+    (yield header >> mapC edgeToLine) .| unlinesAsciiC .| sinkFile output
+  where
+    header = ":START_ID,:END_ID,weight,:TYPE"
     isCombined e = case _edge_type e of
         Combined _ -> True
-        Binding{..} -> False
-{-# INLINE sinkLinkage #-}
+        _ -> False
+{-# INLINE outputCombinedEdges #-}
 
 -- | Save the node information to a file.
 outputNodes :: FilePath -> S.Set NetNode -> IO ()

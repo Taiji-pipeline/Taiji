@@ -46,6 +46,7 @@ instance SCATACSeqConfig TaijiConfig where
     _scatacseq_callpeak_opts _ = def & mode .~ NoModel (-100) 200
                                    & cutoff .~ PValue 0.01
                                    & callSummits .~ True
+    _scatacseq_annotation = _taiji_annotation
 
 instance RNASeqConfig TaijiConfig where
     _rnaseq_genome_fasta = _taiji_genome
@@ -71,14 +72,11 @@ mainWith defaultMainOpts
         namespace "RNA" $ RNASeq.inputReader "RNA-seq"
         namespace "RNA" RNASeq.builder
         namespace "ATAC" ATACSeq.builder
-
         [ "ATAC_Get_TFBS", "ATAC_Get_Peak", "HiC_Read_Input"
             , "RNA_Make_Expr_Table" ] ~> "Create_Linkage_Prep"
         ["Create_Linkage", "RNA_Make_Expr_Table"] ~> "Compute_Ranks_Prep"
 
         namespace "SCATAC" SCATACSeq.builder
         namespace "DropSeq" DropSeq.builder
-
         [ "SCATAC_Find_TFBS", "SCATAC_Make_CutSite_Index",
             "DropSeq_Quantification" ] ~> "Compute_Ranks_SC_Prep"
-

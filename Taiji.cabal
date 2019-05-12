@@ -22,23 +22,22 @@ library
                        -fno-warn-unticked-promoted-constructors
 
   exposed-modules:     Taiji.Core
-                       Taiji.Constants
                        Taiji.Core.RegulatoryElement
                        Taiji.Core.Network
                        Taiji.Core.Network.DeNovo
                        Taiji.Core.Network.External
-                       Taiji.Core.Network.SingleCell
                        Taiji.Core.Ranking
                        Taiji.Core.Utils
-                       -- Taiji.Extra
-                       -- Taiji.Extra.Functions
+                       Taiji.SingleCell
+                       Taiji.Constants
 
   build-depends:       base >= 4.7 && < 5
                      , aeson
+                     , bbi
                      , bytestring
                      , bio-pipelines
                      , bio-experiments
-                     , bioinformatics-toolkit >= 0.7.0
+                     , bioinformatics-toolkit >= 0.8.0
                      , cereal
                      , containers
                      , clustering

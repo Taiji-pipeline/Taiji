@@ -16,7 +16,7 @@ import           Data.Maybe                   (mapMaybe)
 import           Scientific.Workflow
 
 import           Taiji.Core.Network
-import           Taiji.Core.Network.SingleCell
+import           Taiji.SingleCell
 import           Taiji.Core.Ranking
 import           Taiji.Core.RegulatoryElement
 import           Taiji.Types                  (_taiji_input)

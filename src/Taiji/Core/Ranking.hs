@@ -8,6 +8,7 @@ module Taiji.Core.Ranking
     ( computeRanks
     , outputRanks
     , pageRank
+    , pageRank'
     ) where
 
 import           Bio.Data.Experiment
@@ -63,6 +64,13 @@ pageRank gr = do
         then Nothing
         else Just (_node_name $ nodeLab gr i, (r, getP r))
 {-# INLINE pageRank #-}
+
+pageRank' :: Graph 'D NetNode Double -> [(GeneName, Double)]
+pageRank' gr = flip mapMaybe (zip [0..] (pageRank_ gr)) $ \(i, r) ->
+    if (null $ pre gr i)
+        then Nothing
+        else Just (_node_name $ nodeLab gr i, r)
+{-# INLINE pageRank' #-}
 
 pageRank_ :: Graph 'D NetNode Double
           -> [Double]

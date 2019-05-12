@@ -29,11 +29,9 @@ import           Taiji.Types
 newtype SiteAffinity = SiteAffinity
     { getSiteAffinity :: Double } deriving (Ord, Eq)
 
--- | Convert p-value to affinity score [0,1].
-toSiteAffinity :: Double -> SiteAffinity
-toSiteAffinity x' = SiteAffinity $ 1 / (1 + exp (-(x - 5)))
-    where
-      x = negate $ logBase 10 $ max 1e-20 x'
+-- | Convert score [0,1000] to affinity score [0,1].
+toSiteAffinity :: Int -> SiteAffinity
+toSiteAffinity x = SiteAffinity $ fromIntegral x / 1000
 {-# INLINE toSiteAffinity #-}
 
 -- | Affinity score of a peak, from 0 to 1.

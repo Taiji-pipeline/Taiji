@@ -12,7 +12,6 @@ module Taiji.Core.Ranking
     ) where
 
 import           Bio.Data.Experiment
-import           Bio.Pipeline.Utils                (getPath)
 import           Conduit
 import           Control.Lens                      hiding (pre, to)
 import           Control.Monad
@@ -48,7 +47,7 @@ computeRanks (atac, exprFl) = do
             expr <- fromMaybe (return M.empty) $ fmap
                 (readExpression 1 (B.pack $ T.unpack grp) . (^.location)) exprFl
             n1 <- getExternalLinks expr net
-            n2 <- readNodesAndEdges (nodeFl^.location) (edgeFl^.location)
+            n2 <- readAssociations (nodeFl^.location) (edgeFl^.location)
             return $ combineNetwork n1 n2
     result <- liftIO $ pageRank gr
     return (grp, result)
@@ -94,22 +93,21 @@ getRankPvalue n gr = do
         binarySearch v' x
 {-# INLINE getRankPvalue #-}
 
-outputRanks :: [(T.Text, [(GeneName, (Double, Double))])]
-            -> WorkflowConfig TaijiConfig ()
-outputRanks inputs = do
-    dir <- asks _taiji_output_dir >>= getPath
-    let output1 = dir ++ "/GeneRanks.tsv"
-        output2 = dir ++ "/GeneRanks_PValues.tsv"
-        ranks = map (M.fromList . snd) inputs
+outputRanks :: FilePath
+            -> FilePath
+            -> [(T.Text, [(GeneName, (Double, Double))])]
+            -> IO ()
+outputRanks _ _ [] = return ()
+outputRanks rankFl pValueFl inputs = do
+    let ranks = map (M.fromList . snd) inputs
         genes = nubSort $ concatMap M.keys ranks
         header = B.pack $ T.unpack $ T.intercalate "\t" $
             "Gene" : fst (unzip inputs)
         ranks' = flip map ranks $ \r -> flip map genes $
             \g -> M.lookupDefault (0,1) g r
-    liftIO $ do
-        B.writeFile output1 $ B.unlines $ header :
-            zipWith toBS (map original genes) (transpose $ (map.map) fst ranks')
-        B.writeFile output2 $ B.unlines $ header :
-            zipWith toBS (map original genes) (transpose $ (map.map) snd ranks')
+    B.writeFile rankFl $ B.unlines $ header :
+        zipWith toBS (map original genes) (transpose $ (map.map) fst ranks')
+    B.writeFile pValueFl $ B.unlines $ header :
+        zipWith toBS (map original genes) (transpose $ (map.map) snd ranks')
   where
     toBS nm xs = B.intercalate "\t" $ nm : map toShortest xs

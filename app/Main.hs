@@ -13,6 +13,7 @@ import           Data.Default                         (def)
 import Data.Maybe
 
 import qualified Taiji.Core             as Core
+import qualified Taiji.SingleCell as SingleCell
 import qualified Taiji.Pipeline.ATACSeq as ATACSeq
 import qualified Taiji.Pipeline.SC.ATACSeq as SCATACSeq
 import qualified Taiji.Pipeline.RNASeq as RNASeq
@@ -68,6 +69,7 @@ instance DropSeqConfig TaijiConfig where
 mainWith defaultMainOpts
     { programHeader = printf "Taiji-v%s" $ showVersion version } $ do
         Core.builder
+        SingleCell.builder
 
         namespace "RNA" $ RNASeq.inputReader "RNA-seq"
         namespace "RNA" RNASeq.builder
@@ -80,3 +82,5 @@ mainWith defaultMainOpts
         namespace "DropSeq" DropSeq.builder
         [ "SCATAC_Find_TFBS", "SCATAC_Make_CutSite_Index",
             "DropSeq_Quantification" ] ~> "Compute_Ranks_SC_Prep"
+        ["SCATAC_Find_TFBS", "SCATAC_Call_Peak_Cluster"] ~>
+            "Compute_Ranks_SC_Cluster_Prep"

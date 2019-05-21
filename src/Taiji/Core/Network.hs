@@ -7,8 +7,8 @@
 module Taiji.Core.Network
     ( combineNetwork
     , readNetwork
-    , readNodesAndEdges
-    , createLinkage
+    , readAssociations
+    , saveAssociations
     , getExternalLinks
     ) where
 

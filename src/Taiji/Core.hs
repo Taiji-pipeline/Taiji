@@ -5,6 +5,7 @@
 module Taiji.Core (builder) where
 
 import           Bio.Data.Experiment
+import           Bio.Pipeline (getPath)
 import           Bio.Data.Experiment.Parser   (readHiC, readHiCTSV)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Text as T
@@ -16,7 +17,6 @@ import           Data.Maybe                   (mapMaybe)
 import           Scientific.Workflow
 
 import           Taiji.Core.Network
-import           Taiji.SingleCell
 import           Taiji.Core.Ranking
 import           Taiji.Core.RegulatoryElement
 import           Taiji.Types                  (_taiji_input)
@@ -61,7 +61,7 @@ builder = do
     node "Create_Linkage_Prep" 'aggregate $ do
         note .= "Prepare for parallel execution."
         submitToRemote .= Just False
-    nodePS 1 "Create_Linkage" 'createLinkage $ do
+    nodePS 1 "Create_Linkage" 'saveAssociations $ do
         remoteParam .= "--mem=20000 -p gpu"
     path ["Create_Linkage_Prep", "Create_Linkage"]
 
@@ -70,13 +70,10 @@ builder = do
     nodePS 1 "Compute_Ranks" 'computeRanks $ do
         note .= "Perform personalized Pagerank."
         remoteParam .= "--mem=20000 -p gpu"
-    nodeS "Output_Ranks" 'outputRanks $ return ()
-
+    nodeS "Output_Ranks" [| \input -> do
+        dir <- asks _taiji_output_dir >>= getPath
+        let output1 = dir ++ "/GeneRanks.tsv"
+            output2 = dir ++ "/GeneRanks_PValues.tsv"
+        liftIO $ outputRanks output1 output2 input
+        |] $ return ()
     path ["Compute_Ranks_Prep", "Compute_Ranks", "Output_Ranks"]
-
-
-    -- Single cell
-    node "Compute_Ranks_SC_Prep" 'prepDataSet $ submitToRemote .= Just False
-    nodePS 1 "Compute_Ranks_SC" 'computeRanksSC $ return ()
-    path ["Compute_Ranks_SC_Prep", "Compute_Ranks_SC"]
-

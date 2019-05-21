@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds         #-}
 module Taiji.Core.Utils
     ( SiteAffinity
     , toSiteAffinity
@@ -7,18 +8,28 @@ module Taiji.Core.Utils
     , getPeakAffinity
     , SiteInfo(..)
     , TFBS
+    , mkPeakMap
     , readExpression
     , lp
+    , BBIndex
+    , openBBs
+    , queryBB
     ) where
 
 import qualified Data.HashMap.Strict     as M
 import qualified Data.ByteString.Char8   as B
+import Data.BBI.BigBed
+import Bio.Data.Experiment
+import Conduit
 import qualified Data.Vector.Unboxed as U
 import           Data.CaseInsensitive              (CI)
+import Bio.Utils.Misc (readInt)
 import Bio.Data.Bed
+import Control.Monad
+import Control.Lens
 import Data.List (foldl')
 import           Data.CaseInsensitive    (mk)
-import           Data.Maybe              (fromMaybe)
+import           Data.Maybe              
 import           Bio.Utils.Misc          (readDouble)
 import           Bio.Utils.Functions               (scale)
 import qualified Data.Matrix.Unboxed               as MU
@@ -50,6 +61,14 @@ data SiteInfo = SiteInfo
 
 type TFBS = BEDExt BED3 SiteInfo
 
+-- | Construct peak map from narrowpeaks.
+mkPeakMap :: [NarrowPeak] -> BEDTree PeakAffinity
+mkPeakMap = bedToTree max . map f
+  where
+    f x = let c = x^.chromStart + fromJust (x^.npPeak)
+              sc = toPeakAffinity $ fromJust $ x^.npPvalue
+          in (asBed (x^.chrom) (c-50) (c+50) :: BED3, sc)
+{-# INLINE mkPeakMap #-}
 
 -- | Read RNA expression data
 readExpression :: Double    -- ^ Threshold to call a gene as non-expressed
@@ -80,3 +99,28 @@ readExpression cutoff ct fl = do
 lp :: Int -> [Double] -> Double
 lp p = (**(1/fromIntegral p)) . foldl' (+) 0 . map (**fromIntegral p)
 {-# INLINE lp #-}
+
+
+type BBIndex = M.HashMap B.ByteString BBedFile
+
+-- | Open bigbed files.
+openBBs :: [(B.ByteString, Maybe (File '[] 'BigBed))]
+        -> IO BBIndex
+openBBs xs = fmap (M.fromList . catMaybes) $ forM xs $ \(chr, x) -> case x of
+    Nothing -> return Nothing
+    Just fl -> do
+        bb <- openBBedFile $ fl^.location
+        return $ Just (chr, bb)
+
+queryBB :: BEDLike b => b -> BBIndex -> ConduitT () TFBS IO ()
+queryBB bed idx = case M.lookup (bed^.chrom) idx of
+    Nothing -> return ()
+    Just i -> query (bed^.chrom, bed^.chromStart, bed^.chromEnd) i .| mapC f
+  where
+    f (chr, s, e, rest) = BEDExt (asBed chr s e) info
+      where
+        info = SiteInfo
+            { _tf_name = mk $ head $ B.split '+' f1
+            , _site_affinity = toSiteAffinity $ readInt f2
+            , _peak_affinity = toPeakAffinity 100 }
+        (f1:f2:_) = B.split '\t' rest

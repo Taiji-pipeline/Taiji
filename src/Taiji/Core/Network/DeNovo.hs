@@ -6,10 +6,11 @@
 {-# LANGUAGE RecordWildCards   #-}
 
 module Taiji.Core.Network.DeNovo
-    ( createLinkage
-    , createLinkage_
+    ( saveAssociations
+    , mkAssociations
+    , mkNetwork
     , readNetwork
-    , readNodesAndEdges
+    , readAssociations
     , getTFBS
     , outputBindingEdges
     , outputCombinedEdges
@@ -22,36 +23,31 @@ import           Bio.Data.Experiment
 import           Bio.Pipeline.Utils                (getPath, asDir)
 import Control.Monad.State.Strict
 import           Bio.Data.Bed
-import           Conduit
 import Data.Conduit.Internal (zipSinks)
 import qualified Data.IntervalMap.Strict as IM
-import           Control.Lens                      hiding (pre, to)
 import qualified Data.Set as S
 import           Control.Monad.Reader              (asks)
 import qualified Data.ByteString.Char8             as B
 import           Data.CaseInsensitive              (mk)
 import Data.Ord (comparing)
 import Data.Function (on)
-import           Data.List
 import qualified Data.HashMap.Strict                   as M
 import           Data.Maybe                        (fromJust)
 import qualified Data.Text                         as T
 import IGraph
-import           Scientific.Workflow               hiding (_data)
 
 import Taiji.Core.Utils
 import Taiji.Core.RegulatoryElement
-import           Taiji.Types
-import           Taiji.Constants (edge_weight_cutoff)
+import           Taiji.Prelude hiding (_data)
 
-createLinkage :: ( ATACSeq S (File tag2 'Bed)         -- ^ TFBS
-                 , File t1 'NarrowPeak  -- ^ promoter activity
-                 , Maybe (File '[ChromosomeLoop] 'Bed)  -- ^ HiC loops
-                 , Maybe (File '[] 'Tsv)          -- ^ Expression
-                 )
-              -> WorkflowConfig TaijiConfig
-                    (ATACSeq S (File '[] 'Other, File '[] 'Other))
-createLinkage (tfFl, peakFl, hicFl, expr) = do
+-- | Construct and save nodes and edges.
+saveAssociations :: ( ATACSeq S (File tag2 'Bed)         -- ^ TFBS
+                    , File t1 'NarrowPeak  -- ^ promoter activity
+                    , Maybe (File '[ChromosomeLoop] 'Bed)  -- ^ HiC loops
+                    , Maybe (File '[] 'Tsv) )        -- ^ Expression
+                 -> WorkflowConfig TaijiConfig
+                        (ATACSeq S (File '[] 'Other, File '[] 'Other))
+saveAssociations (tfFl, peakFl, hicFl, expr) = do
     dir <- asks
         ((<> "/Network/" <> asDir (T.unpack grp)) . _taiji_output_dir)
         >>= getPath
@@ -65,11 +61,11 @@ createLinkage (tfFl, peakFl, hicFl, expr) = do
             Nothing -> return M.empty
             Just e -> readExpression 1 (B.pack $ T.unpack grp ) $ e^.location
         tfbs <- runResourceT $ runConduit $ streamBed (tfFl^.replicates._2.files.location) .|
-            getTFBS (fromNarrowPeak openSites)
+            getTFBS (mkPeakMap openSites)
         promoters <- findActivePromoters openSites <$> readPromoters anno 
 
         let proc = loops .| findTargets tfbs promoters .|
-                createLinkage_ (fmap (second exp) expr') .|
+                mkAssociations (fmap (second exp) expr') .|
                 zipSinks (outputCombinedEdges netEdges)
                 (outputBindingEdges bindingEdges)
             loops = case hicFl of
@@ -82,14 +78,7 @@ createLinkage (tfFl, peakFl, hicFl, expr) = do
         , emptyFile & location .~ netEdges )
   where
     grp = tfFl^.groupName._Just
-{-# INLINE createLinkage #-}
-
-fromNarrowPeak :: [NarrowPeak] -> BEDTree PeakAffinity
-fromNarrowPeak = bedToTree max . map f
-  where
-    f x = let c = x^.chromStart + fromJust (x^.npPeak)
-              sc = toPeakAffinity $ fromJust $ x^.npPvalue
-          in (asBed (x^.chrom) (c-50) (c+50) :: BED3, sc)
+{-# INLINE saveAssociations #-}
 
 getTFBS :: Monad m
         => BEDTree PeakAffinity  -- ^ Potential regulatory regions and its affinity scores
@@ -109,12 +98,13 @@ getTFBS peaks = concatMapC f .| sinkList >>=
       where
         g = getSiteAffinity . _site_affinity
 
-createLinkage_ :: Monad m
+-- | Construct nodes and edges.
+mkAssociations :: Monad m
                => M.HashMap GeneName (Double, Double)   -- ^ Gene expression
                -> ConduitT (GeneName, ([TFBS], [TFBS]))
                            NetEdge
                            (StateT (S.Set NetNode) m) ()
-createLinkage_ expr = concatMapMC $ \(geneName, (ps, es)) -> do
+mkAssociations expr = concatMapMC $ \(geneName, (ps, es)) -> do
     let edgeEnhancer = mkEdges geneName "enhancer" es
         edgePromoter = mkEdges geneName "promoter" ps
         (geneExpr, scaledGeneExpr) = M.lookupDefault (0.1, 1) geneName expr
@@ -151,7 +141,35 @@ createLinkage_ expr = concatMapMC $ \(geneName, (ps, es)) -> do
       where
         siteSc = getSiteAffinity $ _site_affinity $ x^._data
         peakSc = getPeakAffinity $ _peak_affinity $ x^._data
-{-# INLINE createLinkage_ #-}
+{-# INLINE mkAssociations #-}
+
+mkNetwork :: Monad m
+          => M.HashMap GeneName (Double, Double)   -- ^ Gene expression
+          -> ConduitT (GeneName, ([TFBS], [TFBS])) o m (Graph 'D NetNode Double)
+mkNetwork expr = fmap fromLabeledEdges $ concatMapC mkEdges .| sinkList
+  where
+    mkEdges (geneName, (ps, es)) = flip map tfGroup $ \tfs ->
+        let (tfExpr, tfWeight) = M.lookupDefault (0.1, 1) tfName expr
+            tfNode = NetNode { _node_name = tfName
+                            , _node_weight = tfWeight
+                            , _node_expression = Just tfExpr }
+            tfName = fst $ head tfs
+            wCombined = lp 2 $ map snd tfs
+        in ((geneNode, tfNode), wCombined * sqrt tfExpr)
+      where
+        (geneExpr, geneWeight) = M.lookupDefault (0.1, 1) geneName expr
+        geneNode = NetNode { _node_name = geneName
+                           , _node_weight = geneWeight
+                           , _node_expression = Just geneExpr }
+        tfGroup = groupBy ((==) `on` fst) $ sortBy (comparing fst) $
+            filter ((>=edge_weight_cutoff) . snd) $ map f $ ps ++ es
+          where
+            f site = (_tf_name $ site^._data, getEdgeWeight site)
+            getEdgeWeight x = sqrt $ siteSc * peakSc
+              where
+                siteSc = getSiteAffinity $ _site_affinity $ x^._data
+                peakSc = getPeakAffinity $ _peak_affinity $ x^._data
+{-# INLINE mkNetwork #-}
 
 
 --------------------------------------------------------------------------------
@@ -211,10 +229,10 @@ readNetwork nodeFl edgeFl = do
 {-# INLINE readNetwork #-}
 
 -- | Read network files as nodes and edges
-readNodesAndEdges :: FilePath   -- ^ nodes
-                  -> FilePath   -- ^ edges
-                  -> IO ([NetNode], [((GeneName, GeneName), Double)])
-readNodesAndEdges nodeFl edgeFl = do
+readAssociations :: FilePath   -- ^ nodes
+                 -> FilePath   -- ^ edges
+                 -> IO ([NetNode], [((GeneName, GeneName), Double)])
+readAssociations nodeFl edgeFl = do
     nds <- map nodeFromLine . tail . B.lines <$> B.readFile nodeFl
     es <- map f . tail . B.lines <$> B.readFile edgeFl
     return (nds, es)
@@ -222,4 +240,6 @@ readNodesAndEdges nodeFl edgeFl = do
     f l = ( ( mk f2, mk f1), readDouble f3 )
         where
         [f1,f2,f3,_] = B.split ',' l
+{-# INLINE readAssociations #-}
+
 

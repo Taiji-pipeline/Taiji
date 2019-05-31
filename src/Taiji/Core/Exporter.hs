@@ -4,16 +4,13 @@
 {-# LANGUAGE TemplateHaskell   #-}
 module Taiji.Core.Exporter (exportResults) where
 
-import           Bio.Data.Experiment
 import           Bio.Pipeline.Utils     (asDir, getPath)
 import           Bio.Utils.Misc         (readDouble)
 import           Codec.Compression.GZip (bestCompression, compressLevel,
                                          compressWith, defaultCompressParams)
 import           Control.DeepSeq        (($!!))
-import           Control.Lens           ((^.))
 import           Control.Monad
-import           Control.Monad.IO.Class (liftIO)
-import           Control.Monad.Reader   (asks)
+import           Control.Monad.Reader   (asks, ReaderT, liftIO)
 import           Data.Binary            (decodeFile, encode)
 import qualified Data.ByteString.Char8  as B
 import qualified Data.ByteString.Lazy   as BL
@@ -22,20 +19,25 @@ import           Data.Char              (toLower, toUpper)
 import           Data.List.Ordered      (nubSort)
 import qualified Data.Map.Strict        as M
 import qualified Data.Matrix.Unboxed    as MU
-import           Data.Maybe
 import qualified Data.Text              as T
 import           Data.Text.Encoding     (decodeUtf8, encodeUtf8)
 import qualified Data.Vector            as V
 import           IGraph                 (getNodes, nodeLab, pre, suc, mapNodes)
-import           Scientific.Workflow
+import Bio.Utils.Functions
+import Statistics.Sample
+import Control.Arrow
 
+import Taiji.Utils.Plot
+import Taiji.Utils.Plot.ECharts
+import Taiji.Utils.DataFrame hiding (zip, unzip)
+import qualified Taiji.Utils.DataFrame as D
 import           Taiji.Core.Functions   (linkageToGraphWithDefLabel)
-import           Taiji.Types
+import           Taiji.Prelude
 
 exportResults :: ( FilePath    -- ^ File storing the PageRank results
                  , Maybe (File '[] 'Tsv) -- ^ Gene expression
                  , [(T.Text, File '[] 'Other)] )
-              -> WorkflowConfig TaijiConfig FilePath
+              -> ReaderT TaijiConfig IO FilePath
 exportResults (pagerank, expr, es) = do
     dir <- asks _taiji_output_dir >>= getPath . asDir
     let output = dir ++ "/TaijiResults.bin.gz"
@@ -94,3 +96,25 @@ readTSV input = M.fromList $ concatMap (f . B.split '\t') content
     f (x:xs) = zipWith (\s v -> ((mk x, mk s), readDouble v)) samples xs
     (header:content) = B.lines input
     samples = tail $ B.split '\t' header
+
+
+
+
+-- | Determine whether the input pass the CV cutoff
+filtCV :: Double -> V.Vector Double -> Bool
+filtCV cutoff xs = sqrt v / m >= cutoff
+  where
+    (m, v) = meanVarianceUnb xs
+
+plotRanks :: FilePath -> Maybe FilePath -> FilePath -> IO ()
+plotRanks output rankFl exprFl = do
+    df <- case exprFl of
+        Nothing -> filterRows (const $ V.any ((>=1e-5) . fst)) <$>
+            readData rankFl rankFl
+        Just expr -> filterRows (const $ V.any ((>=1e-5) . fst)) <$>
+            readData rankFl expr
+    let dfs = flip map [0.2, 0.4, 0.6, 0.8, 1] $ \cv ->
+            let d = uncurry D.zip $ first (mapRows scale) $ D.unzip $
+                    filterRows (const $ filtCV cv . fst . V.unzip) df
+            in (show cv, d)
+    savePlots output [] [punchChart dfs]

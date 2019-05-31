@@ -1,17 +1,23 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE CPP           #-}
 {-# LANGUAGE TemplateHaskell   #-}
 {-# LANGUAGE FlexibleContexts #-}
 module Main where
 
 import           Data.Version           (showVersion)
-import           Paths_Taiji            (version)
-import           Scientific.Workflow
-import           Text.Printf            (printf)
 import           Bio.Pipeline.CallPeaks
-import           Control.Lens
 import           Data.Default                         (def)
-import Data.Maybe
 
+#ifdef DRMAA_ENABLED
+import Control.Workflow.Coordinator.Drmaa (Drmaa, DrmaaConfig, getDefaultDrmaaConfig)
+#else
+import Control.Workflow.Coordinator.Local (LocalConfig(..))
+#endif
+import           Control.Workflow
+import Control.Workflow.Main
+import Data.Proxy (Proxy(..))
+
+import           Paths_Taiji            (version)
 import qualified Taiji.Core             as Core
 import qualified Taiji.SingleCell as SingleCell
 import qualified Taiji.Pipeline.ATACSeq as ATACSeq
@@ -24,7 +30,7 @@ import           Taiji.Pipeline.SC.ATACSeq.Types (SCATACSeqConfig (..))
 import           Taiji.Pipeline.RNASeq.Config (RNASeqConfig (..))
 import           Taiji.Pipeline.SC.DropSeq.Types (DropSeqConfig (..))
 
-import           Taiji.Types                          (TaijiConfig (..))
+import           Taiji.Prelude
 
 instance ATACSeqConfig TaijiConfig where
     _atacseq_output_dir = (<> "/ATACSeq") . _taiji_output_dir
@@ -45,7 +51,7 @@ instance SCATACSeqConfig TaijiConfig where
     _scatacseq_genome_index = _taiji_genome_index
     _scatacseq_motif_file = _taiji_motif_file
     _scatacseq_callpeak_opts _ = def & mode .~ NoModel (-100) 200
-                                   & cutoff .~ PValue 0.01
+                                   & cutoff .~ QValue 0.05
                                    & callSummits .~ True
     _scatacseq_annotation = _taiji_annotation
 
@@ -66,21 +72,39 @@ instance DropSeqConfig TaijiConfig where
     _dropseq_cell_barcode_length _ = 12
     _dropseq_molecular_barcode_length _ = 8
 
-mainWith defaultMainOpts
-    { programHeader = printf "Taiji-v%s" $ showVersion version } $ do
-        Core.builder
-        SingleCell.builder
+-- Construct workflow
+build "wf" [t| SciFlow TaijiConfig |] $ do
+    Core.builder
+    SingleCell.builder
 
-        namespace "RNA" $ RNASeq.inputReader "RNA-seq"
-        namespace "RNA" RNASeq.builder
-        namespace "ATAC" ATACSeq.builder
-        [ "ATAC_Get_TFBS", "ATAC_Get_Peak", "HiC_Read_Input"
-            , "RNA_Make_Expr_Table" ] ~> "Create_Linkage_Prep"
-        ["Create_Linkage", "RNA_Make_Expr_Table"] ~> "Compute_Ranks_Prep"
+    namespace "RNA" $ RNASeq.inputReader "RNA-seq"
+    namespace "RNA" RNASeq.builder
+    namespace "ATAC" ATACSeq.builder
+    [ "ATAC_Get_TFBS", "ATAC_Get_Peak", "HiC_Read_Input"
+        , "RNA_Make_Expr_Table" ] ~> "Create_Linkage_Prep"
+    ["Create_Linkage", "RNA_Make_Expr_Table"] ~> "Compute_Ranks_Prep"
 
-        namespace "SCATAC" SCATACSeq.builder
-        namespace "DropSeq" DropSeq.builder
-        [ "SCATAC_Find_TFBS", "SCATAC_Make_CutSite_Index",
-            "DropSeq_Quantification" ] ~> "Compute_Ranks_SC_Prep"
-        ["SCATAC_Find_TFBS", "SCATAC_Call_Peak_Cluster"] ~>
-            "Compute_Ranks_SC_Cluster_Prep"
+    namespace "SCATAC" SCATACSeq.builder
+    namespace "DropSeq" DropSeq.builder
+    [ "SCATAC_Find_TFBS", "SCATAC_Make_CutSite_Index",
+        "DropSeq_Quantification" ] ~> "Compute_Ranks_SC_Prep"
+    ["SCATAC_Find_TFBS", "SCATAC_Call_Peak_Cluster", "SCATAC_Make_Expr_Table"] ~>
+        "Compute_Ranks_SC_Cluster_Prep"
+
+#ifdef DRMAA_ENABLED
+getCoordConfig :: String -> Int -> FilePath -> IO DrmaaConfig
+getCoordConfig ip port _ = getDefaultDrmaaConfig
+    ["remote", "--ip", ip, "--port", show port]
+
+commands = [ runParser getCoordConfig
+           , deleteParser
+           , viewParser
+           , remoteParser (Proxy :: Proxy Drmaa) ]
+#else
+commands = [ runParser (\_ _ _ -> return $ LocalConfig 1)
+           , deleteParser
+           , viewParser ]
+#endif
+
+main :: IO ()
+main = defaultMain (printf "Taiji-v%s" $ showVersion version) commands wf

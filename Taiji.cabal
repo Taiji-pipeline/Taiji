@@ -1,5 +1,5 @@
 name:                Taiji
-version:             1.0.0.5
+version:             1.0.0.7
 synopsis:            all-in-one bioinformatics analysis pipeline
 description:         all-in-one bioinformatics analysis pipeline
 homepage:            https://taiji-pipeline.github.io/
@@ -21,14 +21,12 @@ library
   ghc-options:         -Wall
                        -fno-warn-unticked-promoted-constructors
 
-  exposed-modules:     Taiji.Prelude
-                       Taiji.Core
+  exposed-modules:     Taiji.Core
                        Taiji.Core.RegulatoryElement
                        Taiji.Core.Network
                        Taiji.Core.Network.DeNovo
                        Taiji.Core.Network.External
                        Taiji.Core.Ranking
-                       Taiji.Core.Utils
                        Taiji.SingleCell
                        Taiji.SingleCell.Cluster
                        Taiji.SingleCell.Cell
@@ -41,7 +39,6 @@ library
                      , bio-pipelines
                      , bio-experiments
                      , bioinformatics-toolkit >= 0.8.0
-                     , cereal
                      , containers
                      , clustering
                      , double-conversion
@@ -54,12 +51,11 @@ library
                      , haskell-igraph >= 0.7.1
                      , hashable
                      , IntervalMap
-                     , lens
                      , matrices
                      , mtl
                      , singletons >= 2.5
                      , statistics >= 0.14.0
-                     , SciFlow >= 0.6.2
+                     , SciFlow >= 0.7.1
                      , temporary
                      , text
                      , vector
@@ -68,6 +64,10 @@ library
                      , Taiji-utils
                      , Taiji-scATAC-seq
   default-language:    Haskell2010
+
+Flag drmaa
+  Description: DRMAA backend
+  Default:     False
 
 executable taiji
   hs-source-dirs:      app
@@ -78,9 +78,13 @@ executable taiji
 
   other-modules:       Paths_Taiji
 
+  if flag(drmaa)
+    CPP-Options:       -DDRMAA_ENABLED
+    build-depends:     SciFlow-drmaa
+
   build-depends:       base
-                     , lens
-                     , SciFlow >= 0.6.1
+                     , SciFlow >= 0.7.1
+                     , SciFlow-app
                      , data-default
                      , bio-pipelines
                      , Taiji

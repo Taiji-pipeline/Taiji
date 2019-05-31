@@ -4,29 +4,25 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Taiji.Core (builder) where
 
-import           Bio.Data.Experiment
 import           Bio.Pipeline (getPath)
 import           Bio.Data.Experiment.Parser   (readHiC, readHiCTSV)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Text as T
-import           Control.Lens
-import           Control.Monad.IO.Class       (liftIO)
-import           Control.Monad.Reader         (asks)
 import qualified Data.Map.Strict              as M
-import           Data.Maybe                   (mapMaybe)
-import           Scientific.Workflow
+import Control.Workflow
 
 import           Taiji.Core.Network
 import           Taiji.Core.Ranking
 import           Taiji.Core.RegulatoryElement
-import           Taiji.Types                  (_taiji_input)
+import Taiji.Prelude
 
-aggregate :: ( [ATACSeq S f1]   -- ^ TFBS
+aggregate :: MonadIO m
+          => ( [ATACSeq S f1]   -- ^ TFBS
              , [ATACSeq S f2]   -- ^ peaks for promoter
              , [HiC S f3]  -- ^ HiC loops
              , Maybe (File '[] 'Tsv) )         -- ^ Expression
-          -> IO [ (ATACSeq S f1, f2, Maybe f3, Maybe (File '[] 'Tsv)) ]
-aggregate (tfbs, atac_peaks, hic, expr) = do
+          -> m [ (ATACSeq S f1, f2, Maybe f3, Maybe (File '[] 'Tsv)) ]
+aggregate (tfbs, atac_peaks, hic, expr) = liftIO $ do
     grps <- case expr of
         Nothing -> return Nothing
         Just fl -> Just . map (T.pack . B.unpack) . tail . B.split '\t' .
@@ -47,30 +43,26 @@ aggregate (tfbs, atac_peaks, hic, expr) = do
 
 builder :: Builder ()
 builder = do
-    nodeS "HiC_Read_Input" [| \_ -> do
+    node "HiC_Read_Input" [| \_ -> do
         input <- asks _taiji_input
         liftIO $ do
             hic <- if ".tsv" == reverse (take 4 $ reverse input)
                 then readHiCTSV input "HiC"
                 else readHiC input "HiC"
             return $ getHiCLoops hic
-        |] $ do
-            submitToRemote .= Just False
-            note .= "Read HiC loops from input file."
+        |] $ doc .= "Read HiC loops from input file."
 
-    node "Create_Linkage_Prep" 'aggregate $ do
-        note .= "Prepare for parallel execution."
-        submitToRemote .= Just False
-    nodePS 1 "Create_Linkage" 'saveAssociations $ do
-        remoteParam .= "--mem=20000 -p gpu"
+    node "Create_Linkage_Prep" 'aggregate $
+        doc .= "Prepare for parallel execution."
+    nodePar "Create_Linkage" 'saveAssociations $ memory .= 20
     path ["Create_Linkage_Prep", "Create_Linkage"]
 
-    node' "Compute_Ranks_Prep" [| \(x, expr) -> zip x $ repeat expr |] $ do
-        submitToRemote .= Just False
-    nodePS 1 "Compute_Ranks" 'computeRanks $ do
-        note .= "Perform personalized Pagerank."
-        remoteParam .= "--mem=20000 -p gpu"
-    nodeS "Output_Ranks" [| \input -> do
+    node "Compute_Ranks_Prep" [| \(x, expr) -> return $ zip x $ repeat expr |] $
+        return ()
+    nodePar "Compute_Ranks" 'computeRanks $ do
+        doc .= "Perform personalized Pagerank."
+        memory .= 20
+    node "Output_Ranks" [| \input -> do
         dir <- asks _taiji_output_dir >>= getPath
         let output1 = dir ++ "/GeneRanks.tsv"
             output2 = dir ++ "/GeneRanks_PValues.tsv"

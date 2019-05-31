@@ -1,11 +1,9 @@
 module Taiji.SingleCell.Utils where
 
-import Conduit
 import Bio.Data.Bed
 import qualified Data.HashMap.Strict                   as M
-import Control.Lens
 
-import Taiji.Core.Utils
+import Taiji.Prelude
 
 mkTFBSMap :: Monad m => ConduitT TFBS o m (BEDTree [SiteInfo])
 mkTFBSMap = mapC (\x -> (x^._bed, [x^._data])) .| sinkList >>=

@@ -11,34 +11,37 @@ module Taiji.Core.Ranking
     , pageRank'
     ) where
 
-import           Bio.Data.Experiment
-import           Conduit
-import           Control.Lens                      hiding (pre, to)
 import           Control.Monad
 import           Control.Monad.ST (runST)
-import           Control.Monad.Reader              (asks)
+import           Control.Monad.Reader              (asks, ReaderT)
 import qualified Data.ByteString.Char8             as B
 import           Data.CaseInsensitive              (original)
 import           Data.Double.Conversion.ByteString (toShortest)
 import           Data.List                         (transpose, sort)
 import           Data.List.Ordered                 (nubSort)
 import qualified Data.HashMap.Strict                   as M
-import           Data.Maybe                        (fromMaybe, mapMaybe)
 import qualified Data.Text                         as T
 import qualified Data.Vector.Unboxed               as U
+import qualified Data.Vector as V
 import           IGraph
 import           IGraph.Algorithms (pagerank, rewireEdges)
 import IGraph.Random (withSeed)
-import           Scientific.Workflow               hiding (_data)
 import Data.Vector.Algorithms.Search (binarySearch)
+import Bio.Utils.Functions (scale)
+import Statistics.Sample
+import Control.Arrow
 
+import Taiji.Utils.Plot
+import Taiji.Utils.Plot.ECharts
+import Taiji.Utils.DataFrame hiding (zip, unzip)
+import qualified Taiji.Utils.DataFrame as D
 import           Taiji.Core.Network
-import           Taiji.Core.Utils
-import           Taiji.Types
+import           Taiji.Utils
+import           Taiji.Prelude
 
 computeRanks :: ( ATACSeq S (File '[] 'Other, File '[] 'Other)
                 , Maybe (File '[] 'Tsv) )        -- ^ Expression
-             -> WorkflowConfig TaijiConfig (T.Text, [(GeneName, (Double, Double))])
+             -> ReaderT TaijiConfig IO (T.Text, [(GeneName, (Double, Double))])
 computeRanks (atac, exprFl) = do
     maybeNet <- asks _taiji_external_network
     gr <- liftIO $ case maybeNet of
@@ -111,3 +114,24 @@ outputRanks rankFl pValueFl inputs = do
         zipWith toBS (map original genes) (transpose $ (map.map) snd ranks')
   where
     toBS nm xs = B.intercalate "\t" $ nm : map toShortest xs
+
+-- | Determine whether the input pass the CV cutoff
+filtCV :: Double -> V.Vector Double -> Bool
+filtCV cutoff xs = sqrt v / m >= cutoff
+  where
+    (m, v) = meanVarianceUnb xs
+
+{-
+plotRanks :: FilePath -> [(T.Text, [(GeneName, (Double, Double))])] -> Maybe FilePath -> IO ()
+plotRanks output rankFl exprFl = do
+    df <- case exprFl of
+        Nothing -> filterRows (const $ V.any ((>=1e-5) . fst)) <$>
+            readData rankFl rankFl
+        Just expr -> filterRows (const $ V.any ((>=1e-5) . fst)) <$>
+            readData rankFl expr
+    let dfs = flip map [0.2, 0.4, 0.6, 0.8, 1] $ \cv ->
+            let d = uncurry D.zip $ first (mapRows scale) $ D.unzip $
+                    filterRows (const $ filtCV cv . fst . V.unzip) df
+            in (show cv, d)
+    savePlots output [] [punchChart dfs]
+    -}

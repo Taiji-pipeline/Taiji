@@ -14,25 +14,17 @@ module Taiji.Core.RegulatoryElement
 
 import           Bio.Data.Bed
 import           Bio.Data.Bed.Types (BED3(..), fromSorted)
-import           Bio.Data.Experiment
 import           Bio.RealWorld.GENCODE
 import           Bio.Utils.Misc          (readInt)
-import           Conduit
 import Control.Arrow (second)
-import           Control.Lens
 import qualified Data.ByteString.Char8   as B
 import           Data.Either             (lefts)
-import           Data.Function           (on)
 import qualified Data.IntervalMap.Generic.Strict as IM
 import qualified Data.HashMap.Strict as M
-import           Data.List               
 import           Data.List.Ordered       (nubSort)
-import           Data.Maybe              (fromJust, isNothing)
-import           Data.Ord
 import qualified Data.Vector             as V
 
-import           Taiji.Types
-import           Taiji.Core.Utils
+import           Taiji.Prelude
 
 getHiCLoops :: [HiC N [Either SomeFile (SomeFile, SomeFile)]]
             -> [HiC S (File '[ChromosomeLoop] 'Bed)]

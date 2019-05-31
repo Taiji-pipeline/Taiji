@@ -8,27 +8,26 @@ module Taiji.SingleCell.Cell
 import           Bio.Utils.Misc                    (readDouble)
 import Control.Monad.State.Strict
 import           Bio.Data.Bed
-import           Control.Monad.Reader              (asks)
 import qualified Data.ByteString.Char8             as B
 import           Data.CaseInsensitive              (mk)
 import qualified Data.HashMap.Strict                   as M
-import           Scientific.Workflow               hiding (_data)
 
 import Taiji.Pipeline.SC.ATACSeq.Functions.Utils hiding (readPromoters)
 import Taiji.Pipeline.SC.ATACSeq.Types
 
-import Taiji.Core.Utils
+import Taiji.Utils
 import Taiji.Core.RegulatoryElement
 import Taiji.Core.Network.DeNovo
 import Taiji.Core.Ranking
 import           Taiji.SingleCell.Utils
 import           Taiji.Prelude
 
-prepDataSet :: ( f
+prepDataSet :: MonadIO m
+            => ( f
                , [SCATACSeq S (File t2 'Other)]
                , [RNASeq S (File t3 'Tsv, a, b)] )
-            -> IO [(f, File t2 'Other, Maybe (File t3 'Tsv), [B.ByteString])]
-prepDataSet (tfbs, atac, rna) = forM atac $ \e -> do
+            -> m [(f, File t2 'Other, Maybe (File t3 'Tsv), [B.ByteString])]
+prepDataSet (tfbs, atac, rna) = liftIO $ forM atac $ \e -> do
     let x = e^.replicates._2.files
     cells <- withCutSiteIndex (x^.location) $ return . getKeys
     return (tfbs, x, M.lookup (fromJust $ e^.groupName) rnaMap, cells)
@@ -42,7 +41,7 @@ computeRanksSC :: ( [(B.ByteString, Maybe (File '[] 'BigBed))]  -- ^ TFBS
                   , File t2 'Other   -- ^ CutSiteIndex
                   , Maybe (File t3 'Tsv)     -- ^ Expression
                   , [B.ByteString] )   -- ^ Cell Barcode
-               -> WorkflowConfig TaijiConfig [RankResult]
+               -> ReaderT TaijiConfig IO [RankResult]
 computeRanksSC (tfFl, idxFl, rna, cells) = do
     promoters <- fromJust <$> asks _taiji_annotation >>= liftIO . readPromoters
     idx <- liftIO $ openBBs tfFl

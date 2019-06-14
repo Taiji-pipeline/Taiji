@@ -1,18 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE CPP           #-}
 {-# LANGUAGE TemplateHaskell   #-}
 {-# LANGUAGE FlexibleContexts #-}
 module Main where
 
 import           Data.Version           (showVersion)
 import           Bio.Pipeline.CallPeaks
+import Data.Yaml (decodeFileThrow)
 import           Data.Default                         (def)
+import qualified Data.HashMap.Strict as M
 
-#ifdef DRMAA_ENABLED
-import Control.Workflow.Coordinator.Drmaa (Drmaa, DrmaaConfig, getDefaultDrmaaConfig)
-#else
-import Control.Workflow.Coordinator.Local (LocalConfig(..))
-#endif
+import Control.Workflow.Coordinator.Remote (Remote, RemoteConfig(..), getDefaultRemoteConfig)
 import           Control.Workflow
 import Control.Workflow.Main
 import Data.Proxy (Proxy(..))
@@ -42,6 +39,7 @@ instance ATACSeqConfig TaijiConfig where
     _atacseq_callpeak_opts _ = def & mode .~ NoModel (-100) 200
                                    & cutoff .~ PValue 0.01
                                    & callSummits .~ True
+    _atacseq_annotation = _taiji_annotation
 
 instance SCATACSeqConfig TaijiConfig where
     _scatacseq_output_dir = (<> "/SCATACSeq") . _taiji_output_dir
@@ -51,9 +49,10 @@ instance SCATACSeqConfig TaijiConfig where
     _scatacseq_genome_index = _taiji_genome_index
     _scatacseq_motif_file = _taiji_motif_file
     _scatacseq_callpeak_opts _ = def & mode .~ NoModel (-100) 200
-                                   & cutoff .~ QValue 0.05
+                                   & cutoff .~ QValue 0.01
                                    & callSummits .~ True
     _scatacseq_annotation = _taiji_annotation
+    _scatacseq_temp_dir = const Nothing
 
 instance RNASeqConfig TaijiConfig where
     _rnaseq_genome_fasta = _taiji_genome
@@ -75,36 +74,32 @@ instance DropSeqConfig TaijiConfig where
 -- Construct workflow
 build "wf" [t| SciFlow TaijiConfig |] $ do
     Core.builder
-    SingleCell.builder
+    --SingleCell.builder
 
     namespace "RNA" $ RNASeq.inputReader "RNA-seq"
     namespace "RNA" RNASeq.builder
     namespace "ATAC" ATACSeq.builder
     [ "ATAC_Get_TFBS", "ATAC_Get_Peak", "HiC_Read_Input"
-        , "RNA_Make_Expr_Table" ] ~> "Create_Linkage_Prep"
+        , "RNA_Make_Expr_Table", "ATAC_Make_Expr_Table" ] ~> "Create_Linkage_Prep"
     ["Create_Linkage", "RNA_Make_Expr_Table"] ~> "Compute_Ranks_Prep"
 
     namespace "SCATAC" SCATACSeq.builder
     namespace "DropSeq" DropSeq.builder
     [ "SCATAC_Find_TFBS", "SCATAC_Make_CutSite_Index",
         "DropSeq_Quantification" ] ~> "Compute_Ranks_SC_Prep"
-    ["SCATAC_Find_TFBS", "SCATAC_Call_Peak_Cluster", "SCATAC_Make_Expr_Table"] ~>
-        "Compute_Ranks_SC_Cluster_Prep"
+    --["SCATAC_Find_TFBS", "SCATAC_Call_Peak_Cluster", "SCATAC_Make_Expr_Table"] ~>
+    --    "Compute_Ranks_SC_Cluster_Prep"
 
-#ifdef DRMAA_ENABLED
-getCoordConfig :: String -> Int -> FilePath -> IO DrmaaConfig
-getCoordConfig ip port _ = getDefaultDrmaaConfig
-    ["remote", "--ip", ip, "--port", show port]
+getCoordConfig :: String -> Int -> FilePath -> IO RemoteConfig
+getCoordConfig ip port fl = do
+    config <- getDefaultRemoteConfig ["remote", "--ip", ip, "--port", show port]
+    settings <- decodeFileThrow fl :: IO (M.HashMap String String)
+    return config { _remote_parameters = M.lookup "remote_parameters" settings }
 
 commands = [ runParser getCoordConfig
            , deleteParser
            , viewParser
-           , remoteParser (Proxy :: Proxy Drmaa) ]
-#else
-commands = [ runParser (\_ _ _ -> return $ LocalConfig 1)
-           , deleteParser
-           , viewParser ]
-#endif
+           , remoteParser (Proxy :: Proxy Remote) ]
 
 main :: IO ()
 main = defaultMain (printf "Taiji-v%s" $ showVersion version) commands wf

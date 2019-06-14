@@ -5,11 +5,12 @@ packages:
 
 extra-deps:
 
-- git:     https://github.com/Taiji-pipeline/Taiji-utils.git
-  commit:  7537b0c46ae227c2039cb8f93a974e83500441ba
+#- git:     https://github.com/Taiji-pipeline/Taiji-utils.git
+#  commit:  b2563e897fddd89c9f323e09be1696be7b0b972d
+- '../Taiji-utils'
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
-  commit:  ab7a4c19a882168c3038b10d3ba4020a24595bda
+  commit:  b9814899ac5d8322bf1e8e04b48712472e807df7
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
   commit:  1d5fb05157fd308278e19d048e56068e96f17d76
@@ -18,13 +19,14 @@ extra-deps:
   commit:  f39562579970b24c38f0c9f308eb9971162bff0f
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  265b94884e5b59cfc441e18a201d649178665a6b
+  commit:  ec8104881c209a6830e9da1436f85632aaa32d91
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
   commit:  bf7dfc8f31ae12f6b966db816af1879509c4ad8a
 
-- git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-  commit:  3c777f2326a7e4a213d6ff3820e3ab774a9097b3
+#- git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
+#  commit:  ccde25ecd854c4502f885c8e0448101ccf7b6f66
+- '../Taiji-scATAC-seq'
 
 - git:     https://github.com/kaizhang/haskell-igraph.git
   commit:  e9db8aad4ca005257a464a5eff0e5ff15aa761b2
@@ -32,7 +34,11 @@ extra-deps:
 - git:     https://github.com/kaizhang/HsHTSLib.git
   commit:  c116cfa29e33d3142a6cb502f1dc4c02066d0aa9
 
-- bioinformatics-toolkit-0.8.0
+- git:     https://github.com/kaizhang/bioinformatics-toolkit.git
+  commit:  38d248c9a77132198b765dd41a30a04b1c12e2ce
+  subdirs:
+      - bioinformatics-toolkit
+
 - bbi-0.1.1
 - drmaa-0.3.0
 - clustering-0.4.1
@@ -46,9 +52,9 @@ extra-deps:
   commit:  660d554f6acd2dba8b605c84e8fa69e45708bc14
 - distributed-process-monad-control-0.5.1.3
 - git:     https://github.com/kaizhang/SciFlow.git
-  commit:  8078abaf5077f0f4d07e001420802652cb4853e7
+  commit:  6d8cf10029ef760614c57fec38dcb9473c8ef90d
   subdirs:
       - SciFlow
       - SciFlow-app
-      - SciFlow-drmaa
+      - SciFlow-remote
 

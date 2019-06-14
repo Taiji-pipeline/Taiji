@@ -20,9 +20,10 @@ aggregate :: MonadIO m
           => ( [ATACSeq S f1]   -- ^ TFBS
              , [ATACSeq S f2]   -- ^ peaks for promoter
              , [HiC S f3]  -- ^ HiC loops
-             , Maybe (File '[] 'Tsv) )         -- ^ Expression
+             , Maybe (File '[] 'Tsv)       -- ^ Expression
+             , Maybe (File '[] 'Tsv) )         -- ^ estimated Expression from ATAC-seq
           -> m [ (ATACSeq S f1, f2, Maybe f3, Maybe (File '[] 'Tsv)) ]
-aggregate (tfbs, atac_peaks, hic, expr) = liftIO $ do
+aggregate (tfbs, atac_peaks, hic, rnaE, atacE) = liftIO $ do
     grps <- case expr of
         Nothing -> return Nothing
         Just fl -> Just . map (T.pack . B.unpack) . tail . B.split '\t' .
@@ -37,6 +38,7 @@ aggregate (tfbs, atac_peaks, hic, expr) = liftIO $ do
                 then Just (e, pro, hic', expr)
                 else Nothing
   where
+    expr = maybe atacE Just rnaE
     atacFileMap = M.fromList $ map getFile atac_peaks
     hicFileMap = M.fromList $ map getFile hic
     getFile x = (x^.groupName._Just, x^.replicates._2.files)

@@ -1,5 +1,6 @@
 -- | Taiji analysis at the cluster level
 {-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Taiji.SingleCell.Cluster where
@@ -20,44 +21,35 @@ import           Taiji.SingleCell.Utils
 import           Taiji.Prelude
 import Taiji.Utils
 
-prepareData :: Experiment e
-            => (a  -- ^ TFBS
-               , [e S (B.ByteString, File t1 'NarrowPeak)]  -- ^ Peaks
-               , [e S (File t2 'Tsv)] ) -- ^ Expression
-            -> [(a, e S ((B.ByteString, File t1 'NarrowPeak), File t2 'Tsv))]
-prepareData (tfFl, peaks, expr) = zip (repeat tfFl) $ concatMap split $
-    es & mapped.replicates._2.files %~ f 
-  where
-    f (xs, [y]) = zip xs $ repeat y
-    f _ = error "Check your input"
-    es = zipExp (concatMap split (mergeExp peaks)) $
-        concatMap split $ mergeExp expr
+prepareData :: (a  -- ^ TFBS
+               , [(B.ByteString, File t1 'NarrowPeak)]  -- ^ Peaks
+               , Maybe (File t2 'Tsv) ) -- ^ Expression
+            -> [(a, ((B.ByteString, File t1 'NarrowPeak), File t2 'Tsv))]
+prepareData (tfFl, peaks, Just expr) = zip (repeat tfFl) $ zip peaks $ repeat expr
+prepareData _ = []
 
-computeRanksCluster :: Experiment e
-                    => ( [(B.ByteString, Maybe (File '[] 'BigBed))]  -- ^ TFBS
-                       , e S ((B.ByteString, File t1 'NarrowPeak), File t2 'Tsv) )
+computeRanksCluster :: ( [(B.ByteString, Maybe (File '[] 'BigBed))]  -- ^ TFBS
+                       , ((B.ByteString, File t1 'NarrowPeak), File t2 'Tsv) )
                     -> ReaderT TaijiConfig IO
-                        (e S (T.Text, [(GeneName, (Double, Double))]))
-computeRanksCluster (tfFl, input) = do
+                        (T.Text, [(GeneName, (Double, Double))])
+computeRanksCluster (tfFl, ((nm, peakFl), expr)) = do
     promoters <- fromJust <$> asks _taiji_annotation >>= liftIO . readPromoters
-    input & replicates.traverse.files %%~ liftIO . ( \((nm, peakFl), expr) -> do
+    liftIO $ do
         expr' <- (fmap . fmap) (\(a,b) -> (logBase 2 $ a + 1, exp b)) $
             readExpression 1 nm $ expr^.location
         openRegions <- readBed $ peakFl ^.location
         idx <- openBBs tfFl
         ranks <- getRanks (findActivePromoters openRegions promoters)
             expr' openRegions idx
-        return (T.pack $ B.unpack nm, ranks) )
+        return (T.pack $ B.unpack nm, ranks)
 
-outputRanksCluster :: Experiment e 
-                   => [e S (T.Text, [(GeneName, (Double, Double))])]
+outputRanksCluster :: [(T.Text, [(GeneName, (Double, Double))])]
                    -> ReaderT TaijiConfig IO ()
-outputRanksCluster input = forM_ (concatMap split $ mergeExp input) $ \e -> do
-    dir <- asks _taiji_output_dir >>=
-        getPath . (<> (asDir $ "/Rank_Cluster/" ++ T.unpack (e^.eid)))
-    let output1 = dir ++ "/GeneRanks.tsv"
-        output2 = dir ++ "/GeneRanks_PValues.tsv"
-    liftIO $ outputRanks output1 output2 $ e^.replicates._2.files
+outputRanksCluster input = do
+    dir <- asks _taiji_output_dir >>= getPath . (<> "/Rank_Cluster/")
+    let output1 = dir <> "GeneRanks.tsv"
+        output2 = dir <> "GeneRanks_PValues.tsv"
+    liftIO $ outputRanks output1 output2 input
 
 getRanks :: [Promoter]   -- ^ Active promoters
          -> M.HashMap GeneName (Double, Double)   -- ^ Gene expression

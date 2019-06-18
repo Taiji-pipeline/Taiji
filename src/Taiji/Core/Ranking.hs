@@ -29,12 +29,9 @@ import IGraph.Random (withSeed)
 import Data.Vector.Algorithms.Search (binarySearch)
 import Bio.Utils.Functions (scale)
 import Statistics.Sample
-import Control.Arrow
 
 import Taiji.Utils.Plot
 import Taiji.Utils.Plot.ECharts
-import Taiji.Utils.DataFrame hiding (zip, unzip)
-import qualified Taiji.Utils.DataFrame as D
 import           Taiji.Core.Network
 import           Taiji.Utils
 import           Taiji.Prelude

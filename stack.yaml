@@ -13,7 +13,7 @@ extra-deps:
   commit:  b9814899ac5d8322bf1e8e04b48712472e807df7
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
-  commit:  1d5fb05157fd308278e19d048e56068e96f17d76
+  commit:  dfe33c2b3d37e118ae9cd6d5e3368503c2ba9579
 
 - git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
   commit:  f39562579970b24c38f0c9f308eb9971162bff0f
@@ -52,9 +52,8 @@ extra-deps:
   commit:  660d554f6acd2dba8b605c84e8fa69e45708bc14
 - distributed-process-monad-control-0.5.1.3
 - git:     https://github.com/kaizhang/SciFlow.git
-  commit:  6d8cf10029ef760614c57fec38dcb9473c8ef90d
+  commit:  8d873d62d0c2e8d9eba9eec309f6e62296c7d604
   subdirs:
       - SciFlow
       - SciFlow-app
       - SciFlow-remote
-

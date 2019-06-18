@@ -10,7 +10,7 @@ import Taiji.SingleCell.Cluster
 
 builder :: Builder ()
 builder = do
-    node "Compute_Ranks_SC_Prep" 'prepDataSet $ return ()
+    --node "Compute_Ranks_SC_Prep" 'prepDataSet $ return ()
     {-
     nodePS 1 "Compute_Ranks_SC" 'computeRanksSC $ return ()
     path ["Compute_Ranks_SC_Prep", "Compute_Ranks_SC"]

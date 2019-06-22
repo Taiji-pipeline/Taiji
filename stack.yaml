@@ -5,15 +5,14 @@ packages:
 
 extra-deps:
 
-#- git:     https://github.com/Taiji-pipeline/Taiji-utils.git
-#  commit:  b2563e897fddd89c9f323e09be1696be7b0b972d
-- '../Taiji-utils'
+- git:     https://github.com/Taiji-pipeline/Taiji-utils.git
+  commit:  83632d48c888cb4c507a0024708e3238efe457c0
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
   commit:  b9814899ac5d8322bf1e8e04b48712472e807df7
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
-  commit:  dfe33c2b3d37e118ae9cd6d5e3368503c2ba9579
+  commit:  470d1c09c8b8ecc64ced5f085c87cc66d70f8b9d
 
 - git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
   commit:  f39562579970b24c38f0c9f308eb9971162bff0f
@@ -24,9 +23,8 @@ extra-deps:
 - git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
   commit:  bf7dfc8f31ae12f6b966db816af1879509c4ad8a
 
-#- git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-#  commit:  ccde25ecd854c4502f885c8e0448101ccf7b6f66
-- '../Taiji-scATAC-seq'
+- git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
+  commit:  be3d77c76d4a4eb274859d10a45e5435a368c47d
 
 - git:     https://github.com/kaizhang/haskell-igraph.git
   commit:  e9db8aad4ca005257a464a5eff0e5ff15aa761b2

@@ -95,7 +95,7 @@ getCoordConfig ip port fl = do
     config <- getDefaultRemoteConfig ["remote", "--ip", ip, "--port", show port]
     settings <- decodeFileThrow fl :: IO (M.HashMap String String)
     return config
-        { _remote_parameters = M.lookup "submit_paras" settings
+        { _remote_parameters = M.lookup "submit_params" settings
         , _submission_cmd = M.lookupDefault "sbatch" "submit_command" settings
         , _cpu_format = M.lookupDefault "--ntasks-per-node=%d" "submit_cpu_format" settings
         , _memory_format = M.lookupDefault "--mem=%d000" "submit_memory_format" settings

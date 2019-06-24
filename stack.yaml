@@ -24,7 +24,7 @@ extra-deps:
   commit:  bf7dfc8f31ae12f6b966db816af1879509c4ad8a
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-  commit:  5067df5819791c2bc4f762f4bddabb2dac21a77d
+  commit:  71d2dfed0ff105e5d65165da9a511a192f3033c1
 
 - git:     https://github.com/kaizhang/haskell-igraph.git
   commit:  e9db8aad4ca005257a464a5eff0e5ff15aa761b2
@@ -50,7 +50,7 @@ extra-deps:
   commit:  660d554f6acd2dba8b605c84e8fa69e45708bc14
 - distributed-process-monad-control-0.5.1.3
 - git:     https://github.com/kaizhang/SciFlow.git
-  commit:  a23165070cc4e911c4cdb858193b6883f689555d
+  commit:  963e3b2fbdf4981773b3a74b181410c2beaaebe0
   subdirs:
       - SciFlow
       - SciFlow-app

@@ -64,6 +64,7 @@ pageRank gr = do
         else Just (_node_name $ nodeLab gr i, (r, getP r))
 {-# INLINE pageRank #-}
 
+-- | Do not compute p-values
 pageRank' :: Graph 'D NetNode Double -> [(GeneName, Double)]
 pageRank' gr = flip mapMaybe (zip [0..] (pageRank_ gr)) $ \(i, r) ->
     if (null $ pre gr i)

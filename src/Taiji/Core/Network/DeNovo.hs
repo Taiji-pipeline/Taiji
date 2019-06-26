@@ -147,13 +147,13 @@ mkNetwork :: Monad m
 mkNetwork expr = fmap fromLabeledEdges $ concatMapC mkEdges .| sinkList
   where
     mkEdges (geneName, (ps, es)) = flip map tfGroup $ \tfs ->
-        let (tfExpr, tfWeight) = M.lookupDefault (0.1, 1) tfName expr
+        let (edgeW, tfWeight) = M.lookupDefault (0.1, 1) tfName expr
             tfNode = NetNode { _node_name = tfName
                             , _node_weight = tfWeight
-                            , _node_expression = Just tfExpr }
+                            , _node_expression = Just edgeW }
             tfName = fst $ head tfs
             wCombined = lp 2 $ map snd tfs
-        in ((geneNode, tfNode), wCombined * tfExpr)
+        in ((geneNode, tfNode), wCombined * edgeW )
       where
         (geneExpr, geneWeight) = M.lookupDefault (0.1, 1) geneName expr
         geneNode = NetNode { _node_name = geneName

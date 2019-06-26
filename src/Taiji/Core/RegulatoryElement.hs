@@ -8,6 +8,7 @@ module Taiji.Core.RegulatoryElement
     ( getHiCLoops
     , findActivePromoters
     , findTargets
+    , getRegulaDomain
     , read3DContact
     , readPromoters
     ) where

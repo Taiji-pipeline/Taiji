@@ -11,6 +11,10 @@ import           Bio.Data.Bed
 import qualified Data.ByteString.Char8             as B
 import           Data.CaseInsensitive              (mk)
 import qualified Data.HashMap.Strict                   as M
+import qualified Data.IntervalMap.Generic.Strict as IM
+import Control.Arrow
+import           IGraph
+import Data.List.Ordered (nubSort)
 
 import Taiji.Pipeline.SC.ATACSeq.Functions.Utils hiding (readPromoters)
 import Taiji.Pipeline.SC.ATACSeq.Types
@@ -80,3 +84,36 @@ getRanks promoters expr tags bbidx = do
 
 cutSite2Bed :: CutSite -> BED3
 cutSite2Bed (CutSite chr pos) = asBed chr (pos-50) (pos+50) :: BED3
+
+--------------------------------------------------------------------------------
+--
+--------------------------------------------------------------------------------
+
+findTargets' :: Monad m
+            => BEDTree [GeneName]   -- ^ TF binding sites
+            -> [Promoter] -- ^ A list of promoters
+            -> ConduitT (BED3, BED3)  -- Chromatin loops
+                   (GeneName, [GeneName]) m ()
+findTargets' tfbs promoters = getRegulaDomain promoters .|
+    mapC (second (nubSort . concatMap f))
+  where
+    f region = concatMap snd $ IM.toList $ intersecting tfbs $ region^._bed
+{-# INLINE findTargets' #-}
+
+mkNetwork' :: Monad m
+          => M.HashMap GeneName Double   -- ^ gene expression
+          -> ConduitT (GeneName, [GeneName]) o m (Graph 'D NetNode Double)
+mkNetwork' expr = fmap fromLabeledEdges $ concatMapC mkEdges .| sinkList
+  where
+    mkEdges (geneName, tfs) = flip map tfs $ \tf ->
+        let w = logBase 2 $ M.lookupDefault 0 tf expr + 1
+            tfNode = NetNode { _node_name = tf
+                            , _node_weight = w
+                            , _node_expression = Nothing }
+        in ((geneNode, tfNode), w)
+      where
+        geneWeight = logBase 2 $ M.lookupDefault 0 geneName expr + 1
+        geneNode = NetNode { _node_name = geneName
+                           , _node_weight = geneWeight
+                           , _node_expression = Nothing }
+{-# INLINE mkNetwork' #-}

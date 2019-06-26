@@ -24,7 +24,7 @@ extra-deps:
   commit:  bf7dfc8f31ae12f6b966db816af1879509c4ad8a
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-  commit:  945bc40a1ebaa45659eb91bbf67d32df7effbbb5
+  commit:  42b6b8565c5abfaa647e4710a6d2e388dde241e9
       #- '../Taiji-scATAC-seq'
 
 - git:     https://github.com/kaizhang/haskell-igraph.git

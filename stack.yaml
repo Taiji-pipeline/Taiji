@@ -18,7 +18,7 @@ extra-deps:
   commit:  f39562579970b24c38f0c9f308eb9971162bff0f
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  ec8104881c209a6830e9da1436f85632aaa32d91
+  commit:  5565044e2aa988a60295988bfa5037cdd5ef69cc
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
   commit:  bf7dfc8f31ae12f6b966db816af1879509c4ad8a

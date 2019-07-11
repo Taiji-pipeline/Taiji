@@ -49,7 +49,8 @@ outputRanksCluster input = do
     dir <- asks _taiji_output_dir >>= getPath . (<> "/Rank_Cluster/")
     let output1 = dir <> "GeneRanks.tsv"
         output2 = dir <> "GeneRanks_PValues.tsv"
-    liftIO $ outputRanks output1 output2 input
+        output3 = dir <> "GeneRanks.html"
+    liftIO $ outputRanks output1 output2 output3 input
 
 getRanks :: [Promoter]   -- ^ Active promoters
          -> M.HashMap GeneName (Double, Double)   -- ^ Gene expression

@@ -68,6 +68,7 @@ builder = do
         dir <- asks _taiji_output_dir >>= getPath
         let output1 = dir ++ "/GeneRanks.tsv"
             output2 = dir ++ "/GeneRanks_PValues.tsv"
-        liftIO $ outputRanks output1 output2 input
+            output3 = dir ++ "/GeneRanks.html"
+        liftIO $ outputRanks output1 output2 output3 input
         |] $ return ()
     path ["Compute_Ranks_Prep", "Compute_Ranks", "Output_Ranks"]

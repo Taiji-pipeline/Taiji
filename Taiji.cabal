@@ -1,5 +1,5 @@
 name:                Taiji
-version:             1.0.0.16
+version:             1.0.0.19
 synopsis:            all-in-one bioinformatics analysis pipeline
 description:         all-in-one bioinformatics analysis pipeline
 homepage:            https://taiji-pipeline.github.io/
@@ -69,7 +69,7 @@ executable taiji
   hs-source-dirs:      app
   main-is:             Main.hs
 
-  ghc-options:         -threaded -Wall
+  ghc-options:         -threaded -Wall -rtsopts
   -- ghc-options:         -threaded -Wall -optl-static -optc-static -optl-pthread
 
   other-modules:       Paths_Taiji

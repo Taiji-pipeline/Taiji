@@ -16,8 +16,7 @@ import           Control.Monad.ST (runST)
 import           Control.Monad.Reader              (asks, ReaderT)
 import qualified Data.ByteString.Char8             as B
 import           Data.CaseInsensitive              (original)
-import           Data.Double.Conversion.ByteString (toShortest)
-import           Data.List                         (transpose, sort)
+import           Data.List                         (sort)
 import           Data.List.Ordered                 (nubSort)
 import qualified Data.HashMap.Strict                   as M
 import qualified Data.Text                         as T
@@ -32,6 +31,7 @@ import Statistics.Sample
 
 import Taiji.Utils.Plot
 import Taiji.Utils.Plot.ECharts
+import qualified Taiji.Utils.DataFrame as DF
 import           Taiji.Core.Network
 import           Taiji.Utils
 import           Taiji.Prelude
@@ -96,40 +96,25 @@ getRankPvalue n gr = do
 
 outputRanks :: FilePath
             -> FilePath
+            -> FilePath
             -> [(T.Text, [(GeneName, (Double, Double))])]
             -> IO ()
-outputRanks _ _ [] = return ()
-outputRanks rankFl pValueFl inputs = do
-    let ranks = map (M.fromList . snd) inputs
-        genes = nubSort $ concatMap M.keys ranks
-        header = B.pack $ T.unpack $ T.intercalate "\t" $
-            "Gene" : fst (unzip inputs)
-        ranks' = flip map ranks $ \r -> flip map genes $
-            \g -> M.lookupDefault (0,1) g r
-    B.writeFile rankFl $ B.unlines $ header :
-        zipWith toBS (map original genes) (transpose $ (map.map) fst ranks')
-    B.writeFile pValueFl $ B.unlines $ header :
-        zipWith toBS (map original genes) (transpose $ (map.map) snd ranks')
+outputRanks _ _ _ [] = return ()
+outputRanks rankFl pValueFl pltFl inputs = do
+    DF.writeTable rankFl (T.pack . show) $ fst $ DF.unzip df
+    DF.writeTable pValueFl (T.pack . show) $ snd $ DF.unzip df
+    savePlots pltFl [] [plt <> toolbox]
   where
-    toBS nm xs = B.intercalate "\t" $ nm : map toShortest xs
+    ranks = map (M.fromList . snd) inputs
+    genes = nubSort $ concatMap M.keys ranks
+    df = DF.transpose $ DF.mkDataFrame (map fst inputs)
+        (map (T.pack . B.unpack . original) genes) $ flip map ranks $ \r ->
+        flip map genes $ \g -> M.lookupDefault (0,1) g r
+    plt = heatmap $ DF.mapRows scale $ DF.filterRows (const $ filtCV 0.2) $
+        DF.filterRows (const $ V.any (>=1e-5)) $ fst $ DF.unzip df
 
 -- | Determine whether the input pass the CV cutoff
 filtCV :: Double -> V.Vector Double -> Bool
 filtCV cutoff xs = sqrt v / m >= cutoff
   where
     (m, v) = meanVarianceUnb xs
-
-{-
-plotRanks :: FilePath -> [(T.Text, [(GeneName, (Double, Double))])] -> Maybe FilePath -> IO ()
-plotRanks output rankFl exprFl = do
-    df <- case exprFl of
-        Nothing -> filterRows (const $ V.any ((>=1e-5) . fst)) <$>
-            readData rankFl rankFl
-        Just expr -> filterRows (const $ V.any ((>=1e-5) . fst)) <$>
-            readData rankFl expr
-    let dfs = flip map [0.2, 0.4, 0.6, 0.8, 1] $ \cv ->
-            let d = uncurry D.zip $ first (mapRows scale) $ D.unzip $
-                    filterRows (const $ filtCV cv . fst . V.unzip) df
-            in (show cv, d)
-    savePlots output [] [punchChart dfs]
-    -}

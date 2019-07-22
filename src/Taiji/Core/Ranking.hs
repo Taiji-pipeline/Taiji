@@ -110,7 +110,9 @@ outputRanks rankFl pValueFl pltFl inputs = do
     df = DF.transpose $ DF.mkDataFrame (map fst inputs)
         (map (T.pack . B.unpack . original) genes) $ flip map ranks $ \r ->
         flip map genes $ \g -> M.lookupDefault (0,1) g r
-    plt = heatmap $ DF.mapRows scale $ DF.filterRows (const $ filtCV 0.2) $
+    plt = heatmap $ DF.reorderRows (DF.orderByCluster id) $
+        DF.reorderColumns (DF.orderByCluster id) $
+        DF.mapRows scale $ DF.filterRows (const $ filtCV 0.2) $
         DF.filterRows (const $ V.any (>=1e-5)) $ fst $ DF.unzip df
 
 -- | Determine whether the input pass the CV cutoff

@@ -52,7 +52,8 @@ instance SCATACSeqConfig TaijiConfig where
                                    & cutoff .~ QValue 0.01
                                    & callSummits .~ True
     _scatacseq_annotation = _taiji_annotation
-    _scatacseq_temp_dir = const Nothing
+    _scatacseq_temp_dir = _taiji_tmp_dir
+    _scatacseq_cluster_resolution = _taiji_cluster_resolution
 
 instance RNASeqConfig TaijiConfig where
     _rnaseq_genome_fasta = _taiji_genome

@@ -15,8 +15,9 @@ extra-deps:
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
   commit:  470d1c09c8b8ecc64ced5f085c87cc66d70f8b9d
 
-- git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
-  commit:  f39562579970b24c38f0c9f308eb9971162bff0f
+#- git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
+#  commit:  f39562579970b24c38f0c9f308eb9971162bff0f
+- '../Taiji-RNA-seq'
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
   commit:  e29b899249f968d04236cd63bd695a7373211d40

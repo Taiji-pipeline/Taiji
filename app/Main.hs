@@ -76,7 +76,7 @@ instance DropSeqConfig TaijiConfig where
 -- Construct workflow
 build "wf" [t| SciFlow TaijiConfig |] $ do
     Core.builder
-    SingleCell.builder
+    --SingleCell.builder
 
     namespace "RNA" $ RNASeq.inputReader "RNA-seq"
     namespace "RNA" RNASeq.builder
@@ -89,8 +89,8 @@ build "wf" [t| SciFlow TaijiConfig |] $ do
     namespace "DropSeq" DropSeq.builder
     --[ "SCATAC_Find_TFBS", "SCATAC_Make_CutSite_Index",
     --    "DropSeq_Quantification" ] ~> "Compute_Ranks_SC_Prep"
-    ["SCATAC_Find_TFBS", "SCATAC_Call_Peaks", "SCATAC_Make_Expr_Table"] ~>
-        "Compute_Ranks_SC_Cluster_Prep"
+    --["SCATAC_Find_TFBS", "SCATAC_Call_Peaks", "SCATAC_Make_Expr_Table"] ~>
+    --    "Compute_Ranks_SC_Cluster_Prep"
 
 getCoordConfig :: String -> Int -> FilePath -> IO RemoteConfig
 getCoordConfig ip port fl = do

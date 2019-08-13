@@ -117,6 +117,6 @@ outputRanks rankFl pValueFl pltFl inputs = do
 
 -- | Determine whether the input pass the CV cutoff
 filtCV :: Double -> V.Vector Double -> Bool
-filtCV cutoff xs = sqrt v / m >= cutoff
+filtCV thres xs = sqrt v / m >= thres
   where
     (m, v) = meanVarianceUnb xs

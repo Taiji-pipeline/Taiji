@@ -55,6 +55,7 @@ instance SCATACSeqConfig TaijiConfig where
     _scatacseq_temp_dir = _taiji_tmp_dir
     _scatacseq_cluster_resolution = _taiji_cluster_resolution
     _scatacseq_marker_gene_list = const $ Just "markers.tsv"
+    _scatacseq_blacklist = _taiji_blacklist
 
 instance RNASeqConfig TaijiConfig where
     _rnaseq_genome_fasta = _taiji_genome

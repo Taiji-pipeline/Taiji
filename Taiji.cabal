@@ -80,6 +80,7 @@ executable taiji
                      , SciFlow-remote
                      , data-default
                      , bio-pipelines
+                     , text
                      , Taiji
                      , Taiji-ATAC-seq
                      , Taiji-RNA-seq

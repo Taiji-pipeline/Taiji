@@ -5,7 +5,7 @@ module Main where
 
 import           Data.Version           (showVersion)
 import           Bio.Pipeline.CallPeaks
-import Data.Yaml (decodeFileThrow)
+import Data.Yaml (decodeFileThrow, Value(..))
 import           Data.Default                         (def)
 import qualified Data.HashMap.Strict as M
 
@@ -13,6 +13,7 @@ import Control.Workflow.Coordinator.Remote (Remote, RemoteConfig(..), getDefault
 import           Control.Workflow
 import Control.Workflow.Main
 import Data.Proxy (Proxy(..))
+import qualified Data.Text as T
 
 import           Paths_Taiji            (version)
 import qualified Taiji.Core             as Core
@@ -37,7 +38,7 @@ instance ATACSeqConfig TaijiConfig where
     _atacseq_genome_index = _taiji_genome_index
     _atacseq_motif_file = _taiji_motif_file
     _atacseq_callpeak_opts _ = def & mode .~ NoModel (-100) 200
-                                   & cutoff .~ PValue 0.01
+                                   & cutoff .~ QValue 0.05
                                    & callSummits .~ True
     _atacseq_annotation = _taiji_annotation
 
@@ -96,13 +97,16 @@ build "wf" [t| SciFlow TaijiConfig |] $ do
 getCoordConfig :: String -> Int -> FilePath -> IO RemoteConfig
 getCoordConfig ip port fl = do
     config <- getDefaultRemoteConfig ["remote", "--ip", ip, "--port", show port]
-    settings <- decodeFileThrow fl :: IO (M.HashMap String String)
+    settings <- decodeFileThrow fl :: IO (M.HashMap String Value)
     return config
-        { _remote_parameters = M.lookup "submit_params" settings
-        , _submission_cmd = M.lookupDefault "sbatch" "submit_command" settings
-        , _cpu_format = M.lookupDefault "--ntasks-per-node=%d" "submit_cpu_format" settings
-        , _memory_format = M.lookupDefault "--mem=%d000" "submit_memory_format" settings
-        , _queue_format = M.lookupDefault "-p %s" "submit_queue_format" settings }
+        { _remote_parameters = str <$> M.lookup "submit_params" settings
+        , _submission_cmd = str $ M.lookupDefault "sbatch" "submit_command" settings
+        , _cpu_format = str $ M.lookupDefault "--ntasks-per-node=%d" "submit_cpu_format" settings
+        , _memory_format = str $ M.lookupDefault "--mem=%d000" "submit_memory_format" settings
+        }
+  where
+    str (String x) = T.unpack x
+    str _ = error "Expecting string"
 
 commands = [ runParser getCoordConfig
            , deleteParser

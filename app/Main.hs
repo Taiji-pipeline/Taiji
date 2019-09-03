@@ -33,25 +33,34 @@ import           Taiji.Prelude
 instance ATACSeqConfig TaijiConfig where
     _atacseq_output_dir = (<> "/ATACSeq") . _taiji_output_dir
     _atacseq_input = _taiji_input
-    _atacseq_bwa_index = fmap (++ "/genome.fa") . _taiji_bwa_index
+    _atacseq_assembly = _taiji_assembly
+    _atacseq_bwa_index = Just . (++ "/genome.fa") . _taiji_bwa_index
     _atacseq_genome_fasta = _taiji_genome
-    _atacseq_genome_index = _taiji_genome_index
+    _atacseq_genome_index = Just . _taiji_genome_index
     _atacseq_motif_file = _taiji_motif_file
-    _atacseq_callpeak_opts _ = def & mode .~ NoModel (-100) 200
-                                   & cutoff .~ QValue 0.05
-                                   & callSummits .~ True
+    _atacseq_callpeak_opts config = case _taiji_callpeak_fdr config of
+        Nothing -> def & mode .~ NoModel (-100) 200
+                       & cutoff .~ QValue 0.05
+                       & callSummits .~ True
+        Just fdr -> def & mode .~ NoModel (-100) 200
+                       & cutoff .~ QValue fdr
+                       & callSummits .~ True
     _atacseq_annotation = _taiji_annotation
 
 instance SCATACSeqConfig TaijiConfig where
     _scatacseq_output_dir = (<> "/SCATACSeq") . _taiji_output_dir
     _scatacseq_input = _taiji_input
-    _scatacseq_bwa_index = fmap (++ "/genome.fa") . _taiji_bwa_index
+    _scatacseq_bwa_index = Just . (++ "/genome.fa") . _taiji_bwa_index
     _scatacseq_genome_fasta = _taiji_genome
-    _scatacseq_genome_index = _taiji_genome_index
+    _scatacseq_genome_index = Just . _taiji_genome_index
     _scatacseq_motif_file = _taiji_motif_file
-    _scatacseq_callpeak_opts _ = def & mode .~ NoModel (-100) 200
-                                   & cutoff .~ QValue 0.01
-                                   & callSummits .~ True
+    _scatacseq_callpeak_opts config = case _taiji_callpeak_fdr config of
+        Nothing -> def & mode .~ NoModel (-100) 200
+                       & cutoff .~ QValue 0.01
+                       & callSummits .~ True
+        Just fdr -> def & mode .~ NoModel (-100) 200
+                       & cutoff .~ QValue fdr
+                       & callSummits .~ True
     _scatacseq_annotation = _taiji_annotation
     _scatacseq_temp_dir = _taiji_tmp_dir
     _scatacseq_cluster_resolution = _taiji_cluster_resolution
@@ -60,15 +69,15 @@ instance SCATACSeqConfig TaijiConfig where
 
 instance RNASeqConfig TaijiConfig where
     _rnaseq_genome_fasta = _taiji_genome
-    _rnaseq_star_index = _taiji_star_index
+    _rnaseq_star_index = Just . _taiji_star_index
     _rnaseq_annotation = _taiji_annotation
-    _rnaseq_rsem_index = fmap (++ "/genome") . _taiji_rsem_index
+    _rnaseq_rsem_index = Just . (++ "/genome") . _taiji_rsem_index
     _rnaseq_input = _taiji_input
     _rnaseq_output_dir = (<> "/RNASeq") . _taiji_output_dir
 
 instance DropSeqConfig TaijiConfig where
     _dropseq_genome_fasta = _taiji_genome
-    _dropseq_star_index = fromJust . _taiji_star_index
+    _dropseq_star_index = _taiji_star_index
     _dropseq_annotation = fromJust . _taiji_annotation
     _dropseq_input = _taiji_input
     _dropseq_output_dir = (<> "/DropSeq") . _taiji_output_dir

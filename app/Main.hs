@@ -25,7 +25,7 @@ import qualified Taiji.Pipeline.SC.DropSeq as DropSeq
 
 import           Taiji.Pipeline.ATACSeq.Types (ATACSeqConfig (..))
 import           Taiji.Pipeline.SC.ATACSeq.Types (SCATACSeqConfig (..))
-import           Taiji.Pipeline.RNASeq.Config (RNASeqConfig (..))
+import           Taiji.Pipeline.RNASeq.Types (RNASeqConfig (..))
 import           Taiji.Pipeline.SC.DropSeq.Types (DropSeqConfig (..))
 
 import           Taiji.Prelude
@@ -68,6 +68,7 @@ instance SCATACSeqConfig TaijiConfig where
     _scatacseq_blacklist = _taiji_blacklist
 
 instance RNASeqConfig TaijiConfig where
+    _rnaseq_assembly = _taiji_assembly
     _rnaseq_genome_fasta = _taiji_genome
     _rnaseq_star_index = Just . _taiji_star_index
     _rnaseq_annotation = _taiji_annotation

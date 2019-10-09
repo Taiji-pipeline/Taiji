@@ -129,4 +129,8 @@ commands = [ runParser getCoordConfig
            , remoteParser (Proxy :: Proxy Remote) ]
 
 main :: IO ()
-main = defaultMain (printf "Taiji-v%s" $ showVersion version) commands wf
+main = defaultMain header descr commands wf
+  where
+    header = printf "Taiji-v%s" $ showVersion version
+    descr = "An integrated multi-omics bioinformatics analysis pipline. " <>
+        "For more details, see: https://taiji-pipeline.github.io/"

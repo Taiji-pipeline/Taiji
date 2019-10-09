@@ -43,10 +43,11 @@ computeRanksCluster (tfFl, ((nm, peakFl), expr)) = do
             expr' openRegions idx
         return (T.pack $ B.unpack nm, ranks)
 
-outputRanksCluster :: [(T.Text, [(GeneName, (Double, Double))])]
+outputRanksCluster :: FilePath
+                   -> [(T.Text, [(GeneName, (Double, Double))])]
                    -> ReaderT TaijiConfig IO ()
-outputRanksCluster input = do
-    dir <- asks _taiji_output_dir >>= getPath . (<> "/Rank_Cluster/")
+outputRanksCluster prefix input = do
+    dir <- asks _taiji_output_dir >>= getPath . (<> asDir prefix)
     let output1 = dir <> "GeneRanks.tsv"
         output2 = dir <> "GeneRanks_PValues.tsv"
         output3 = dir <> "GeneRanks.html"
@@ -63,4 +64,3 @@ getRanks promoters expr tags bbidx = do
         mkNetwork expr 
     pageRank net
 {-# INLINE getRanks #-}
-

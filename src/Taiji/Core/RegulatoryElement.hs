@@ -152,8 +152,8 @@ readPromoters = (fmap . concatMap) fn . readGenes
       where
         g x | geneStrand = BEDExt (asBed geneChrom (max 0 $ x - 5000) (x + 1000)) geneName
             | otherwise = BEDExt (asBed geneChrom (max 0 $ x - 1000) (x + 5000)) geneName
-        tss | geneStrand = geneLeft : map fst geneTranscripts
-            | otherwise = geneRight : map snd geneTranscripts
+        tss | geneStrand = geneLeft : map transLeft geneTranscripts
+            | otherwise = geneRight : map transRight geneTranscripts
 {-# INLINE readPromoters #-}
 
 -- | Read 3D contacts from a file, where each line contains 6 fields separated

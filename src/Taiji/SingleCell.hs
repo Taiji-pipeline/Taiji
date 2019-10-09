@@ -18,6 +18,14 @@ builder = do
 
     node "Compute_Ranks_SC_Cluster_Prep" [| return . prepareData |] $ return ()
     nodePar "Compute_Ranks_SC_Cluster" 'computeRanksCluster $ return ()
-    node "Output_Ranks_SC_Cluster" 'outputRanksCluster $ return ()
+    node "Output_Ranks_SC_Cluster" [| outputRanksCluster "/Rank/Cluster/" |] $ return ()
     path [ "Compute_Ranks_SC_Cluster_Prep", "Compute_Ranks_SC_Cluster",
         "Output_Ranks_SC_Cluster" ]
+
+    node "Compute_Ranks_SC_Subcluster_Prep" [| return . prepareData |] $ return ()
+    nodePar "Compute_Ranks_SC_Subcluster" 'computeRanksCluster $ return ()
+    node "Output_Ranks_SC_Subcluster" [| outputRanksCluster "/Rank/Subcluster/" |] $ return ()
+    path [ "Compute_Ranks_SC_Subcluster_Prep", "Compute_Ranks_SC_Subcluster",
+        "Output_Ranks_SC_Subcluster" ]
+
+

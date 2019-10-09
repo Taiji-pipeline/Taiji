@@ -103,7 +103,7 @@ outputRanks _ _ _ [] = return ()
 outputRanks rankFl pValueFl pltFl inputs = do
     DF.writeTable rankFl (T.pack . show) $ fst $ DF.unzip df
     DF.writeTable pValueFl (T.pack . show) $ snd $ DF.unzip df
-    savePlots pltFl [] [plt <> toolbox]
+    savePlots pltFl [] [addAttr toolbox plt]
   where
     ranks = map (M.fromList . snd) inputs
     genes = nubSort $ concatMap M.keys ranks

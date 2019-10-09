@@ -6,10 +6,10 @@ packages:
 extra-deps:
 
 - git:     https://github.com/Taiji-pipeline/Taiji-utils.git
-  commit:  c34c838f27652fd0b56be24a946a4b1d1d740c5b
+  commit:  b0425bcbe209489c88cf3e53c9ff55ee58e46c60
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
-  commit:  f5eb179697a15515786a03ee1fad5fe5bcfd4a00
+  commit:  9c065ae0ae1b33e43cb37842fdb5caec9b56e4e6
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
   commit:  470d1c09c8b8ecc64ced5f085c87cc66d70f8b9d
@@ -18,14 +18,13 @@ extra-deps:
   commit:  ed1aba1edb923ae61b4e2b2ee2b2a60e7c2be86c
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  322d256fd3d5dc4435ec0505f4f759a5293625d9
+  commit:  3f29c21b693ece2012fc91ed107fdf09b35fa87f
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
-  commit:  4da1197a49d3866d5a5cbfbb5ede696dbeadc046
+  commit:  e7375fc459fdbdc22fdba4c82936817a8d4e9314
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-  commit:  04ddb03e4320623f740994235f3c528e24521ada
-#- '../Taiji-scATAC-seq'
+  commit:  14e07b19c43b5b6125d0eee3aab461cc87539d40
 
 - git:     https://github.com/kaizhang/haskell-igraph.git
   commit:  e9db8aad4ca005257a464a5eff0e5ff15aa761b2
@@ -33,16 +32,11 @@ extra-deps:
 - git:     https://github.com/kaizhang/HsHTSLib.git
   commit:  c116cfa29e33d3142a6cb502f1dc4c02066d0aa9
 
-- git:     https://github.com/kaizhang/bioinformatics-toolkit.git
-  commit:  38d248c9a77132198b765dd41a30a04b1c12e2ce
-  subdirs:
-      - bioinformatics-toolkit
+- bioinformatics-toolkit-0.9.0
 
 - bbi-0.1.1
 - clustering-0.4.1
 - jmacro-0.6.16
-#- ftp-client-conduit-0.5.0.4
-#- ftp-client-0.5.1.1
 
 - git:     https://github.com/haskell-distributed/distributed-static.git
   commit:  d34b5139a0c349fbda6ffea5fbbe960c3c91aeb1
@@ -53,7 +47,7 @@ extra-deps:
 - distributed-process-monad-control-0.5.1.3
 
 - git:     https://github.com/kaizhang/SciFlow.git
-  commit:  88cda2f56225fd68525192326a2a17156e8bfc14
+  commit:  92a77e51d23bdb10b72bf21139468e2b6d45a335
   subdirs:
       - SciFlow
       - SciFlow-app

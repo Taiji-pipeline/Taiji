@@ -64,8 +64,8 @@ instance SCATACSeqConfig TaijiConfig where
     _scatacseq_annotation = _taiji_annotation
     _scatacseq_temp_dir = _taiji_tmp_dir
     _scatacseq_cluster_resolution = _taiji_cluster_resolution
-    _scatacseq_marker_gene_list = const $ Just "markers.tsv"
     _scatacseq_blacklist = _taiji_blacklist
+    _scatacseq_te_cutoff = fromMaybe 5 . _taiji_te_cutoff
 
 instance RNASeqConfig TaijiConfig where
     _rnaseq_assembly = _taiji_assembly
@@ -82,13 +82,15 @@ instance DropSeqConfig TaijiConfig where
     _dropseq_annotation = fromJust . _taiji_annotation
     _dropseq_input = _taiji_input
     _dropseq_output_dir = (<> "/DropSeq") . _taiji_output_dir
-    _dropseq_cell_barcode_length _ = 12
-    _dropseq_molecular_barcode_length _ = 8
+    _dropseq_cell_barcode_length = fromMaybe
+        (error "Please specify cell barcode length") . _taiji_scrna_cell_barcode_length 
+    _dropseq_molecular_barcode_length = fromMaybe
+        (error "Please specify UMI length") . _taiji_scrna_umi_length
 
 -- Construct workflow
 build "wf" [t| SciFlow TaijiConfig |] $ do
     Core.builder
-    --SingleCell.builder
+    SingleCell.builder
 
     namespace "RNA" $ RNASeq.inputReader "RNA-seq"
     namespace "RNA" RNASeq.builder
@@ -99,10 +101,12 @@ build "wf" [t| SciFlow TaijiConfig |] $ do
 
     namespace "SCATAC" SCATACSeq.builder
     namespace "DropSeq" DropSeq.builder
-    --[ "SCATAC_Find_TFBS", "SCATAC_Make_CutSite_Index",
+    --["SCATAC_Find_TFBS", "SCATAC_Make_CutSite_Index",
     --    "DropSeq_Quantification" ] ~> "Compute_Ranks_SC_Prep"
-    --["SCATAC_Find_TFBS", "SCATAC_Call_Peaks", "SCATAC_Make_Expr_Table"] ~>
-    --    "Compute_Ranks_SC_Cluster_Prep"
+    ["SCATAC_Find_TFBS", "SCATAC_Call_Peaks_Cluster", "SCATAC_Gene_Acc"] ~>
+        "Compute_Ranks_SC_Cluster_Prep"
+    ["SCATAC_Find_TFBS", "SCATAC_Call_Peaks", "SCATAC_Subcluster_Gene_Acc"] ~>
+        "Compute_Ranks_SC_Subcluster_Prep"
 
 getCoordConfig :: String -> Int -> FilePath -> IO RemoteConfig
 getCoordConfig ip port fl = do

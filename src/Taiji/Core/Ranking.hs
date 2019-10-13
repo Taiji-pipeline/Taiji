@@ -26,8 +26,8 @@ import           IGraph
 import           IGraph.Algorithms (pagerank, rewireEdges)
 import IGraph.Random (withSeed)
 import Data.Vector.Algorithms.Search (binarySearch)
-import Bio.Utils.Functions (scale)
-import Statistics.Sample
+import Bio.Utils.Functions (scale, filterFDR)
+import qualified Data.Matrix as Mat
 
 import Taiji.Utils.Plot
 import Taiji.Utils.Plot.ECharts
@@ -103,19 +103,18 @@ outputRanks _ _ _ [] = return ()
 outputRanks rankFl pValueFl pltFl inputs = do
     DF.writeTable rankFl (T.pack . show) $ fst $ DF.unzip df
     DF.writeTable pValueFl (T.pack . show) $ snd $ DF.unzip df
-    savePlots pltFl [] [addAttr toolbox plt]
+    savePlots pltFl [] [toolbox >+> plt]
   where
     ranks = map (M.fromList . snd) inputs
     genes = nubSort $ concatMap M.keys ranks
     df = DF.transpose $ DF.mkDataFrame (map fst inputs)
         (map (T.pack . B.unpack . original) genes) $ flip map ranks $ \r ->
         flip map genes $ \g -> M.lookupDefault (0,1) g r
-    plt = heatmap $ DF.orderDataFrame id $
-        DF.mapRows scale $ DF.filterRows (const $ filtCV 0.2) $
-        DF.filterRows (const $ V.any (>=1e-5)) $ fst $ DF.unzip df
 
--- | Determine whether the input pass the CV cutoff
-filtCV :: Double -> V.Vector Double -> Bool
-filtCV thres xs = sqrt v / m >= thres
-  where
-    (m, v) = meanVarianceUnb xs
+    tfs = nubSort $ flip concatMap
+        (Mat.toColumns $ snd $ Mat.unzip $ DF._dataframe_data df) $ \pval ->
+            V.toList $ fst $ V.unzip $ filterFDR 0.001 $
+            V.zip (V.fromList $ DF.rowNames df) pval
+    plt = heatmap $ DF.orderDataFrame id $ DF.mapRows scale $
+        DF.filterRows (const $ \xs -> V.maximum xs / V.minimum xs > 2) $
+        (fst $ DF.unzip df) `DF.rsub` tfs

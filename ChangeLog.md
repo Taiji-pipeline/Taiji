@@ -7,7 +7,14 @@ bug fixes.
 - Use promoter accessibility to estimate the gene expression when RNA-seq is
   not available. This greately improves the results.
 
-- Parallelism and distributed computing:
+- New interface for Parallelism and distributed computing which supports running
+  jobs on PBS or slurm. The number of jobs and resource usage of each step can now
+  be configured.
+
+- Add more QCs and visualization, including fragment size distribution, TSS enrichment,
+  signal correlation and so on.
+
+- Preliminary support for single cell RNA and ATAC analysis.
 
 v0.5.0 (2018-10-28)
 ===================

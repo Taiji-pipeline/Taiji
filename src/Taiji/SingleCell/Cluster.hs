@@ -46,6 +46,7 @@ computeRanksCluster (tfFl, ((nm, peakFl), expr)) = do
 outputRanksCluster :: FilePath
                    -> [(T.Text, [(GeneName, (Double, Double))])]
                    -> ReaderT TaijiConfig IO ()
+outputRanksCluster _ [] = return ()
 outputRanksCluster prefix input = do
     dir <- asks _taiji_output_dir >>= getPath . (<> asDir prefix)
     let output1 = dir <> "GeneRanks.tsv"

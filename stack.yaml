@@ -18,13 +18,13 @@ extra-deps:
   commit:  614902c8dd26cabb9f5e08c28e8000be99998ee3
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  55a2f265c65bbcf12c382146d57ddbdfc205fe9b 
+  commit:  707cb3776d001d4af7e6877115acf7e1e10eac7b
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
   commit:  f098d88ac41ac8222f83b1e3e173ad52e16b8dbd
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-  commit:  dbca19e9741daa7ef2d486468111cedecaf6d79f
+  commit:  886f24dd3289954ae6f8ef208878d1f0459af266
 
 - git:     https://github.com/kaizhang/haskell-igraph.git
   commit:  e9db8aad4ca005257a464a5eff0e5ff15aa761b2

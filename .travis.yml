@@ -27,7 +27,7 @@ jobs:
           kaizhang/centos-haskell-stack
           /bin/bash -c
           "cd source && stack install bioinformatics-toolkit --allow-different-user"
-        - chmod -R 777 $HOME/build
+        - sudo chmod -R 777 $HOME/build
     - stage: build
       script:
         - docker pull kaizhang/centos-haskell-stack
@@ -36,9 +36,8 @@ jobs:
           -v `pwd`:/source:rw
           kaizhang/centos-haskell-stack
           /bin/bash -c
-          "cd source && stack build --allow-different-user &&
-          mv $(stack path --local-install-root --allow-different-user)/bin/taiji /source/taiji-Linux-x86_64"
-        - chmod -R 777 $HOME/build
+          'cd source && stack build --allow-different-user && mv $(stack path --local-install-root --allow-different-user)/bin/taiji /source/taiji-Linux-x86_64'
+        - sudo chmod -R 777 $HOME/build
       deploy:
         provider: releases
         skip_cleanup: true

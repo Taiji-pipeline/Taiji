@@ -36,8 +36,7 @@ jobs:
           kaizhang/centos-haskell-stack
           /bin/bash -c
           "cd source && stack build --allow-different-user &&
-          cd `stack path --local-install-root --allow-different-user` &&
-          mv bin/taiji /source/taiji-Linux-x86_64"
+          mv $(stack path --local-install-root --allow-different-user)/bin/taiji /source/taiji-Linux-x86_64"
       deploy:
         provider: releases
         skip_cleanup: true

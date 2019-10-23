@@ -38,13 +38,10 @@ instance ATACSeqConfig TaijiConfig where
     _atacseq_genome_fasta = _taiji_genome
     _atacseq_genome_index = Just . _taiji_genome_index
     _atacseq_motif_file = _taiji_motif_file
-    _atacseq_callpeak_opts config = case _taiji_callpeak_fdr config of
-        Nothing -> def & mode .~ NoModel (-100) 200
-                       & cutoff .~ QValue 0.05
-                       & callSummits .~ True
-        Just fdr -> def & mode .~ NoModel (-100) 200
-                       & cutoff .~ QValue fdr
-                       & callSummits .~ True
+    _atacseq_callpeak_opts config = def & mode .~ NoModel (-100) 200
+        & cutoff .~ QValue (fromMaybe 0.05 $ _taiji_callpeak_fdr config)
+        & callSummits .~ True
+        & gSize .~ _taiji_callpeak_genome_size config
     _atacseq_annotation = _taiji_annotation
 
 instance SCATACSeqConfig TaijiConfig where
@@ -54,13 +51,10 @@ instance SCATACSeqConfig TaijiConfig where
     _scatacseq_genome_fasta = _taiji_genome
     _scatacseq_genome_index = Just . _taiji_genome_index
     _scatacseq_motif_file = _taiji_motif_file
-    _scatacseq_callpeak_opts config = case _taiji_callpeak_fdr config of
-        Nothing -> def & mode .~ NoModel (-100) 200
-                       & cutoff .~ QValue 0.01
-                       & callSummits .~ True
-        Just fdr -> def & mode .~ NoModel (-100) 200
-                       & cutoff .~ QValue fdr
-                       & callSummits .~ True
+    _scatacseq_callpeak_opts config = def & mode .~ NoModel (-100) 200
+        & cutoff .~ QValue (fromMaybe 0.01 $ _taiji_callpeak_fdr config)
+        & callSummits .~ True
+        & gSize .~ _taiji_callpeak_genome_size config
     _scatacseq_annotation = _taiji_annotation
     _scatacseq_temp_dir = _taiji_tmp_dir
     _scatacseq_cluster_resolution = _taiji_cluster_resolution

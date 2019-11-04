@@ -1,5 +1,5 @@
 name:                Taiji
-version:             1.0.1.1
+version:             1.0.1.2
 synopsis:            all-in-one bioinformatics analysis pipeline
 description:         all-in-one bioinformatics analysis pipeline
 homepage:            https://taiji-pipeline.github.io/
@@ -36,7 +36,7 @@ library
                      , aeson
                      , bbi
                      , bytestring
-                     , bio-pipelines
+                     , bio-pipelines >= 0.1.2
                      , bio-experiments
                      , bioinformatics-toolkit >= 0.9.0
                      , containers
@@ -61,7 +61,7 @@ library
                      , vector
                      , vector-algorithms
                      , zlib
-                     , Taiji-utils
+                     , Taiji-utils >= 0.1.1
                      , Taiji-scATAC-seq
   default-language:    Haskell2010
 

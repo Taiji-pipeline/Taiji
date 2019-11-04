@@ -43,6 +43,7 @@ instance ATACSeqConfig TaijiConfig where
         & callSummits .~ True
         & gSize .~ _taiji_callpeak_genome_size config
     _atacseq_annotation = _taiji_annotation
+    _atacseq_tmp_dir = _taiji_tmp_dir
 
 instance SCATACSeqConfig TaijiConfig where
     _scatacseq_output_dir = (<> "/SCATACSeq") . _taiji_output_dir
@@ -56,7 +57,7 @@ instance SCATACSeqConfig TaijiConfig where
         & callSummits .~ True
         & gSize .~ _taiji_callpeak_genome_size config
     _scatacseq_annotation = _taiji_annotation
-    _scatacseq_temp_dir = _taiji_tmp_dir
+    _scatacseq_tmp_dir = _taiji_tmp_dir
     _scatacseq_cluster_resolution = _taiji_cluster_resolution
     _scatacseq_blacklist = _taiji_blacklist
     _scatacseq_te_cutoff = fromMaybe 5 . _taiji_te_cutoff

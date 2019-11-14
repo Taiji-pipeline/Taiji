@@ -21,12 +21,12 @@ import qualified Taiji.SingleCell as SingleCell
 import qualified Taiji.Pipeline.ATACSeq as ATACSeq
 import qualified Taiji.Pipeline.SC.ATACSeq as SCATACSeq
 import qualified Taiji.Pipeline.RNASeq as RNASeq
-import qualified Taiji.Pipeline.SC.DropSeq as DropSeq
+import qualified Taiji.Pipeline.SC.RNASeq as SCRNASeq
 
 import           Taiji.Pipeline.ATACSeq.Types (ATACSeqConfig (..))
 import           Taiji.Pipeline.SC.ATACSeq.Types (SCATACSeqConfig (..))
 import           Taiji.Pipeline.RNASeq.Types (RNASeqConfig (..))
-import           Taiji.Pipeline.SC.DropSeq.Types (DropSeqConfig (..))
+import           Taiji.Pipeline.SC.RNASeq.Types (SCRNASeqConfig (..))
 
 import           Taiji.Prelude
 
@@ -71,16 +71,19 @@ instance RNASeqConfig TaijiConfig where
     _rnaseq_input = _taiji_input
     _rnaseq_output_dir = (<> "/RNASeq") . _taiji_output_dir
 
-instance DropSeqConfig TaijiConfig where
-    _dropseq_genome_fasta = _taiji_genome
-    _dropseq_star_index = _taiji_star_index
-    _dropseq_annotation = fromJust . _taiji_annotation
-    _dropseq_input = _taiji_input
-    _dropseq_output_dir = (<> "/DropSeq") . _taiji_output_dir
-    _dropseq_cell_barcode_length = fromMaybe
+instance SCRNASeqConfig TaijiConfig where
+    _scrnaseq_genome_fasta = _taiji_genome
+    _scrnaseq_star_index = _taiji_star_index
+    _scrnaseq_annotation = fromMaybe
+        (error "Please specificy the path of annotation file") . _taiji_annotation
+    _scrnaseq_input = _taiji_input
+    _scrnaseq_output_dir = (<> "/SCRNASeq") . _taiji_output_dir
+    _scrnaseq_tmp_dir = _taiji_tmp_dir
+    _scrnaseq_cell_barcode_length = fromMaybe
         (error "Please specify cell barcode length") . _taiji_scrna_cell_barcode_length 
-    _dropseq_molecular_barcode_length = fromMaybe
+    _scrnaseq_molecular_barcode_length = fromMaybe
         (error "Please specify UMI length") . _taiji_scrna_umi_length
+    _scrnaseq_doublet_score_cutoff = _taiji_scrna_doublet_score_cutoff 
 
 -- Construct workflow
 build "wf" [t| SciFlow TaijiConfig |] $ do
@@ -95,7 +98,7 @@ build "wf" [t| SciFlow TaijiConfig |] $ do
     ["Create_Linkage", "RNA_Make_Expr_Table"] ~> "Compute_Ranks_Prep"
 
     namespace "SCATAC" SCATACSeq.builder
-    namespace "DropSeq" DropSeq.builder
+    namespace "SCRNA" SCRNASeq.builder
     --["SCATAC_Find_TFBS", "SCATAC_Make_CutSite_Index",
     --    "DropSeq_Quantification" ] ~> "Compute_Ranks_SC_Prep"
     ["SCATAC_Find_TFBS", "SCATAC_Call_Peaks_Cluster", "SCATAC_Gene_Acc"] ~>

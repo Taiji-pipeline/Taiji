@@ -48,6 +48,7 @@ instance ATACSeqConfig TaijiConfig where
 instance SCATACSeqConfig TaijiConfig where
     _scatacseq_output_dir = (<> "/SCATACSeq") . _taiji_output_dir
     _scatacseq_input = _taiji_input
+    _scatacseq_assembly = _taiji_assembly
     _scatacseq_bwa_index = Just . (++ "/genome.fa") . _taiji_bwa_index
     _scatacseq_genome_fasta = _taiji_genome
     _scatacseq_genome_index = Just . _taiji_genome_index
@@ -58,9 +59,11 @@ instance SCATACSeqConfig TaijiConfig where
         & gSize .~ _taiji_callpeak_genome_size config
     _scatacseq_annotation = _taiji_annotation
     _scatacseq_tmp_dir = _taiji_tmp_dir
-    _scatacseq_cluster_resolution = _taiji_cluster_resolution
     _scatacseq_blacklist = _taiji_blacklist
     _scatacseq_te_cutoff = fromMaybe 5 . _taiji_te_cutoff
+    _scatacseq_minimal_fragment = _taiji_scatac_minimal_fragment
+    _scatacseq_cluster_resolution = _taiji_cluster_resolution
+    _scatacseq_cluster_optimizer = _taiji_cluster_optimizer
 
 instance RNASeqConfig TaijiConfig where
     _rnaseq_assembly = _taiji_assembly
@@ -84,6 +87,8 @@ instance SCRNASeqConfig TaijiConfig where
     _scrnaseq_molecular_barcode_length = fromMaybe
         (error "Please specify UMI length") . _taiji_scrna_umi_length
     _scrnaseq_doublet_score_cutoff = _taiji_scrna_doublet_score_cutoff 
+    _scrnaseq_cluster_resolution = _taiji_cluster_resolution
+    _scrnaseq_cluster_optimizer = _taiji_cluster_optimizer
 
 -- Construct workflow
 build "wf" [t| SciFlow TaijiConfig |] $ do
@@ -101,10 +106,8 @@ build "wf" [t| SciFlow TaijiConfig |] $ do
     namespace "SCRNA" SCRNASeq.builder
     --["SCATAC_Find_TFBS", "SCATAC_Make_CutSite_Index",
     --    "DropSeq_Quantification" ] ~> "Compute_Ranks_SC_Prep"
-    ["SCATAC_Find_TFBS", "SCATAC_Call_Peaks_Cluster", "SCATAC_Gene_Acc"] ~>
-        "Compute_Ranks_SC_Cluster_Prep"
-    ["SCATAC_Find_TFBS", "SCATAC_Call_Peaks", "SCATAC_Subcluster_Gene_Acc"] ~>
-        "Compute_Ranks_SC_Subcluster_Prep"
+    ["SCATAC_Find_TFBS", "SCATAC_Call_Peaks", "SCATAC_Gene_Acc"] ~>
+        "Compute_Ranks_SC_Prep"
 
 getCoordConfig :: String -> Int -> FilePath -> IO RemoteConfig
 getCoordConfig ip port fl = do

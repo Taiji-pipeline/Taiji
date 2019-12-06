@@ -219,11 +219,12 @@ readNetwork nodeFl edgeFl = do
     toEdge nodeMap fl = sourceFileBS fl .| linesUnboundedAsciiC .|
         (dropC 1 >> mapC f) 
       where
-        f l = ( ( M.lookupDefault undefined (mk f2) nodeMap
+        f l = case B.split ',' l of
+            [f1,f2,f3,_] ->
+              ( ( M.lookupDefault undefined (mk f2) nodeMap
                 , M.lookupDefault undefined (mk f1) nodeMap )
-              , readDouble f3 )
-          where
-            [f1,f2,f3,_] = B.split ',' l
+                , readDouble f3 )
+            _ -> error $ "Unexpected line: " <> show l
 {-# INLINE readNetwork #-}
 
 -- | Read network files as nodes and edges

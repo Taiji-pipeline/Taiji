@@ -1,0 +1,27 @@
+name: Continuous integration
+on: [push]
+
+jobs:
+  build_macos:
+    name: Build macos
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Install dependency
+        run: brew install igraph haskell-stack
+
+      - name: Build
+        run: stack install
+
+  build_ubuntu:
+    name: Build ubuntu
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Install dependency
+        run: apt-get install libigraph0-dev haskell-stack
+
+      - name: Build
+        run: stack install

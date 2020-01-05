@@ -1,5 +1,5 @@
-v1.1.x (2019-xx-xx)
-===================
+Latest
+======
 
 - Auto-detect effective genome size for MACS2.
 
@@ -33,4 +33,4 @@ v0.5.0 (2018-10-28)
 ===================
 
 - Add a function to include external networks, using the field
-`external_network` in the configuration file.
+  `external_network` in the configuration file.

@@ -1,5 +1,5 @@
 name:                Taiji
-version:             1.0.1.8
+version:             1.0.1.9
 synopsis:            Multi-omics bioinformatics analysis pipeline
 description:         Taiji is an integrated multi-omics bioinformatics analysis
                      pipeline. It can analyze ATAC-seq, RNA-seq, single cell
@@ -72,7 +72,10 @@ executable taiji
   hs-source-dirs:      app
   main-is:             Main.hs
 
-  ghc-options:         -threaded -Wall -rtsopts
+  ghc-options:         -threaded
+                       -rtsopts
+                       -Wall
+                       -fno-warn-orphans
   -- ghc-options:         -threaded -Wall -optl-static -optc-static -optl-pthread
 
   other-modules:       Paths_Taiji

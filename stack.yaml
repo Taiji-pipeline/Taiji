@@ -9,22 +9,22 @@ extra-deps:
   commit:  f796c18ff3998713c2485d67f74c5e96367d285d
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
-  commit:  50d65bc42b9331badc00bf387cecfbe008ad37e9
+  commit:  4b2feb52eb62dde1c26bb4a7e9c4d5456f6034b5
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
   commit:  470d1c09c8b8ecc64ced5f085c87cc66d70f8b9d
 
 - git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
-  commit:  0b184782b70c4200c4be829e92c3fed6d7de7572
+  commit:  384c714206e192e743e3c6de50a74f29fd62cf4e
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  e33ca8295342412ee4d32bfa4f0a7815db4221ce
+  commit:  fd5df5fa73946d4e4e836bb46d539248f983cd4d
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
-  commit:  6043a6572730ce02ee535119c35b22c5f227518a
+  commit:  b5d02b0aef22b11f60997f4e86ff67e512d4aa2f
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-  commit:  0079329d422dec161dfbbfd6e44b94942bdbd077
+  commit:  75b79eb117251dc595712d41ef2f310f8301d5a1
 
 - git:     https://github.com/kaizhang/haskell-igraph.git
   commit:  e9db8aad4ca005257a464a5eff0e5ff15aa761b2
@@ -32,7 +32,7 @@ extra-deps:
 - git:     https://github.com/kaizhang/HsHTSLib.git
   commit:  c116cfa29e33d3142a6cb502f1dc4c02066d0aa9
 
-- bioinformatics-toolkit-0.9.0
+- bioinformatics-toolkit-0.9.1
 
 - bbi-0.1.1
 - clustering-0.4.1
@@ -47,7 +47,7 @@ extra-deps:
 - distributed-process-monad-control-0.5.1.3
 
 - git:     https://github.com/kaizhang/SciFlow.git
-  commit:  ca5f37411e73c9066f67f7fe65f4a341946c7dfd
+  commit:  2b88b7f99f8c4555919a9746782984545d319006
   subdirs:
       - SciFlow
       - SciFlow-app

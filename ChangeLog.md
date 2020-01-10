@@ -7,6 +7,8 @@ Latest
 
 - Reduce memory usage in certain steps.
 
+- Fix the normalization issue in bigwig file generation.
+
 - Add more features to single cell RNA-seq analysis pipeline.
 
 - Add more features to single cell ATAC-seq analysis pipeline.

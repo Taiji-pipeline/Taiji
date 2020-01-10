@@ -65,6 +65,7 @@ instance SCATACSeqConfig TaijiConfig where
     _scatacseq_cluster_resolution = _taiji_cluster_resolution
     _scatacseq_cluster_optimizer = _taiji_cluster_optimizer
     _scatacseq_doublet_score_cutoff = _taiji_scrna_doublet_score_cutoff 
+    _scatacseq_cluster_by_window = const False
 
 instance RNASeqConfig TaijiConfig where
     _rnaseq_assembly = _taiji_assembly

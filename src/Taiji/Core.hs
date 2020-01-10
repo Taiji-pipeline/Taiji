@@ -54,13 +54,11 @@ builder = do
             return $ getHiCLoops hic
         |] $ doc .= "Read HiC loops from input file."
 
-    node "Create_Linkage_Prep" 'aggregate $
-        doc .= "Prepare for parallel execution."
+    node "Create_Linkage_Prep" 'aggregate $ return ()
     nodePar "Create_Linkage" 'saveAssociations $ memory .= 20
     path ["Create_Linkage_Prep", "Create_Linkage"]
 
-    node "Compute_Ranks_Prep" [| \(x, expr) -> return $ zip x $ repeat expr |] $
-        return ()
+    uNode "Compute_Ranks_Prep" [| \(x, expr) -> zip x $ repeat expr |]
     nodePar "Compute_Ranks" 'computeRanks $ do
         doc .= "Perform personalized Pagerank."
         memory .= 20

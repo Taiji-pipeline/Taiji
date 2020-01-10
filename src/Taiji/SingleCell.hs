@@ -15,7 +15,7 @@ builder = do
     path ["Compute_Ranks_SC_Prep", "Compute_Ranks_SC"]
     -}
 
-    node "Compute_Ranks_SC_Prep" [| return . prepareData |] $ return ()
+    uNode "Compute_Ranks_SC_Prep" [| prepareData |]
     nodePar "Compute_Ranks_SC" 'computeRanksCluster $ return ()
     node "Output_Ranks_SC" [| outputRanksCluster "/Rank/Cluster/" |] $ return ()
     path ["Compute_Ranks_SC_Prep", "Compute_Ranks_SC", "Output_Ranks_SC"]

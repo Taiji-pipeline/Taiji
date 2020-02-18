@@ -245,9 +245,10 @@ readAssociations nodeFl edgeFl = do
 mkPeakMap :: [NarrowPeak] -> BEDTree PeakAffinity
 mkPeakMap = bedToTree max . map f
   where
-    f x = let c = x^.chromStart + fromJust (x^.npPeak)
-              sc = toPeakAffinity $ fromJust $ x^.npPvalue
-          in (asBed (x^.chrom) (c-50) (c+50) :: BED3, sc)
+    f x = ( asBed (x^.chrom) (center - 50) (center + 50) :: BED3
+          , toPeakAffinity $ fromMaybe 5 $ x^.npPvalue )
+      where
+        center = case x^.npPeak of
+          Nothing -> (x^.chromStart + x^.chromEnd) `div` 2
+          Just c -> x^.chromStart + c
 {-# INLINE mkPeakMap #-}
-
-

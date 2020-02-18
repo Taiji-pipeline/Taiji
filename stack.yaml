@@ -1,4 +1,5 @@
 resolver: nightly-2019-05-25
+#resolver: nightly-2020-01-17
 
 packages:
 - '.'
@@ -12,19 +13,19 @@ extra-deps:
   commit:  4b2feb52eb62dde1c26bb4a7e9c4d5456f6034b5
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
-  commit:  470d1c09c8b8ecc64ced5f085c87cc66d70f8b9d
+  commit:  e4dd0b2dba06015b960287e18a01072badbcbb0a
 
 - git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
-  commit:  384c714206e192e743e3c6de50a74f29fd62cf4e
+  commit:  e92cb6ce074f612f6152f6970a20f0acebe9c326
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  fd5df5fa73946d4e4e836bb46d539248f983cd4d
+  commit:  ad8e8b1d392ef69ebdb669bbc4b8b8da209178ed
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
-  commit:  b5d02b0aef22b11f60997f4e86ff67e512d4aa2f
+  commit:  60e02353a5667d2dde41de9cc34e2c655d135ac0
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-  commit:  75b79eb117251dc595712d41ef2f310f8301d5a1
+  commit:  59ca23a0afd9f4f4f5ff3b6aa113829fdf4aa270
 
 - git:     https://github.com/kaizhang/haskell-igraph.git
   commit:  e9db8aad4ca005257a464a5eff0e5ff15aa761b2
@@ -32,7 +33,7 @@ extra-deps:
 - git:     https://github.com/kaizhang/HsHTSLib.git
   commit:  c116cfa29e33d3142a6cb502f1dc4c02066d0aa9
 
-- bioinformatics-toolkit-0.9.1
+- bioinformatics-toolkit-0.9.2
 
 - bbi-0.1.1
 - clustering-0.4.1

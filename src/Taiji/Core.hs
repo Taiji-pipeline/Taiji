@@ -5,7 +5,8 @@
 module Taiji.Core (builder) where
 
 import           Bio.Pipeline (getPath)
-import           Bio.Data.Experiment.Parser   (readHiC, readHiCTSV)
+import           Bio.Data.Experiment.Parser (mkInputReader)
+import Bio.Data.Experiment.Types
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Text as T
 import qualified Data.Map.Strict              as M
@@ -48,9 +49,7 @@ builder = do
     node "HiC_Read_Input" [| \_ -> do
         input <- asks _taiji_input
         liftIO $ do
-            hic <- if ".tsv" == reverse (take 4 $ reverse input)
-                then readHiCTSV input "HiC"
-                else readHiC input "HiC"
+            hic <- mkInputReader input "HiC" HiC
             return $ getHiCLoops hic
         |] $ doc .= "Read HiC loops from input file."
 

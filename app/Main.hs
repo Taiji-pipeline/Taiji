@@ -97,7 +97,6 @@ build "wf" [t| SciFlow TaijiConfig |] $ do
     Core.builder
     SingleCell.builder
 
-    namespace "RNA" $ RNASeq.inputReader "RNA-seq"
     namespace "RNA" RNASeq.builder
     namespace "ATAC" ATACSeq.builder
     [ "ATAC_Get_TFBS", "ATAC_Get_Peak", "HiC_Read_Input"

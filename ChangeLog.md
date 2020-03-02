@@ -3,6 +3,10 @@ Latest
 
 - Add the option to input "Filtered" Bam files in ATAC-seq.
 
+- Shipped with C igraph library (no need to install it manually).
+
+- Add basic input validations.
+
 v1.1.0 (2020-01-10)
 ===================
 

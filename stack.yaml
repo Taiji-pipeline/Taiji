@@ -7,7 +7,7 @@ packages:
 extra-deps:
 
 - git:     https://github.com/Taiji-pipeline/Taiji-utils.git
-  commit:  f796c18ff3998713c2485d67f74c5e96367d285d
+  commit:  4197e0820d0e8c332c32129e101962b3fd3fd940
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
   commit:  4b2feb52eb62dde1c26bb4a7e9c4d5456f6034b5
@@ -24,16 +24,15 @@ extra-deps:
 - git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
   commit:  60e02353a5667d2dde41de9cc34e2c655d135ac0
 
-- git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-  commit:  59ca23a0afd9f4f4f5ff3b6aa113829fdf4aa270
-
-- git:     https://github.com/kaizhang/haskell-igraph.git
-  commit:  e9db8aad4ca005257a464a5eff0e5ff15aa761b2
+#- git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
+#  commit:  59ca23a0afd9f4f4f5ff3b6aa113829fdf4aa270
+- '../Taiji-scATAC-seq'
 
 - git:     https://github.com/kaizhang/HsHTSLib.git
   commit:  c116cfa29e33d3142a6cb502f1dc4c02066d0aa9
 
 - bioinformatics-toolkit-0.9.2
+- haskell-igraph-0.8.0
 
 - bbi-0.1.1
 - clustering-0.4.1

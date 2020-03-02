@@ -1,5 +1,5 @@
 name:                Taiji
-version:             1.1.0.2
+version:             1.1.0.3
 synopsis:            Multi-omics bioinformatics analysis pipeline
 description:         Taiji is an integrated multi-omics bioinformatics analysis
                      pipeline. It can analyze ATAC-seq, RNA-seq, single cell
@@ -31,9 +31,6 @@ library
                        Taiji.Core.Network.External
                        Taiji.Core.Ranking
                        Taiji.SingleCell
-                       Taiji.SingleCell.Cluster
-                       Taiji.SingleCell.Cell
-                       Taiji.SingleCell.Utils
 
   build-depends:       base >= 4.7 && < 5
                      , aeson

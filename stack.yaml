@@ -33,9 +33,6 @@ extra-deps:
 - git:     https://github.com/kaizhang/ChromVAR.git
   commit:  d65357474b714e1eed4867b528fbb6995b13b000
 
-- git:     https://github.com/kaizhang/eigen.git
-  commit:  087f5baed8ed6a01ee93e2d90e01c033376ad15c
-
 - bioinformatics-toolkit-0.9.3.1
 - haskell-igraph-0.8.0
 

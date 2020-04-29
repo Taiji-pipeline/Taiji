@@ -40,7 +40,7 @@ import           Taiji.Prelude
 
 -- | Construct and save nodes and edges.
 saveAssociations :: ( ATACSeq S (File tag2 'Bed)         -- ^ TFBS
-                    , File t1 'NarrowPeak  -- ^ promoter activity
+                    , Either (File '[] 'NarrowPeak) (File '[Gzip] 'NarrowPeak)  -- ^ promoter activity
                     , Maybe (File '[ChromosomeLoop] 'Bed)  -- ^ HiC loops
                     , Maybe (File '[] 'Tsv) )        -- ^ Expression
                  -> ReaderT TaijiConfig IO
@@ -54,7 +54,10 @@ saveAssociations (tfFl, peakFl, hicFl, expr) = do
         netNodes = dir ++ "/nodes.csv"
         bindingEdges = dir ++ "/edges_binding.csv"
     liftIO $ do
-        openSites <- readBed $ peakFl ^.location
+        openSites <- case peakFl of
+            Left fl -> readBed $ fl ^.location
+            Right fl -> runResourceT $ runConduit $
+                streamBedGzip (fl^.location) .| sinkList
         expr' <- (fmap . fmap) (\(a,b) -> (sqrt a, exp b)) $ case expr of
             Nothing -> return M.empty
             Just e -> readExpression 1 (B.pack $ T.unpack grp ) $ e^.location

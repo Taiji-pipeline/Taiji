@@ -1,11 +1,22 @@
 Latest
 ======
 
+Breaking changes:
+-----------------
+
+- BWA index 
+
+Other changes:
+--------------
+
 - Add the option to input "Filtered" Bam files in ATAC-seq.
 
-- Shipped with C igraph library (no need to install it manually).
+- The Taiji is now shipped with C igraph library (no need to install it separately).
 
 - Add basic input validations.
+
+- Implement the chromVAR algorithm in single cell ATAC analysis.
+
 
 v1.1.0 (2020-01-10)
 ===================

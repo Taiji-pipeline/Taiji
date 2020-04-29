@@ -8,7 +8,6 @@ import           Bio.Pipeline.CallPeaks
 import Data.Yaml (decodeFileThrow, Value(..))
 import           Data.Default                         (def)
 import qualified Data.HashMap.Strict as M
-
 import Control.Workflow.Coordinator.Remote (Remote, RemoteConfig(..), getDefaultRemoteConfig)
 import           Control.Workflow
 import Control.Workflow.Main
@@ -34,7 +33,7 @@ instance ATACSeqConfig TaijiConfig where
     _atacseq_output_dir = (<> "/ATACSeq") . _taiji_output_dir
     _atacseq_input = _taiji_input
     _atacseq_assembly = _taiji_assembly
-    _atacseq_bwa_index = Just . (++ "/genome.fa") . _taiji_bwa_index
+    _atacseq_bwa_index = Just . _taiji_bwa_index
     _atacseq_genome_fasta = _taiji_genome
     _atacseq_genome_index = Just . _taiji_genome_index
     _atacseq_motif_file = _taiji_motif_file
@@ -49,7 +48,7 @@ instance SCATACSeqConfig TaijiConfig where
     _scatacseq_output_dir = (<> "/SCATACSeq") . _taiji_output_dir
     _scatacseq_input = _taiji_input
     _scatacseq_assembly = _taiji_assembly
-    _scatacseq_bwa_index = Just . (++ "/genome.fa") . _taiji_bwa_index
+    _scatacseq_bwa_index = Just . _taiji_bwa_index
     _scatacseq_genome_fasta = _taiji_genome
     _scatacseq_genome_index = Just . _taiji_genome_index
     _scatacseq_motif_file = _taiji_motif_file
@@ -72,7 +71,7 @@ instance RNASeqConfig TaijiConfig where
     _rnaseq_genome_fasta = _taiji_genome
     _rnaseq_star_index = Just . _taiji_star_index
     _rnaseq_annotation = _taiji_annotation
-    _rnaseq_rsem_index = Just . (++ "/genome") . _taiji_rsem_index
+    _rnaseq_rsem_index = Just . _taiji_rsem_index
     _rnaseq_input = _taiji_input
     _rnaseq_output_dir = (<> "/RNASeq") . _taiji_output_dir
 

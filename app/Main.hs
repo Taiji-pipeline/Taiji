@@ -22,12 +22,11 @@ import qualified Taiji.Pipeline.SC.ATACSeq as SCATACSeq
 import qualified Taiji.Pipeline.RNASeq as RNASeq
 import qualified Taiji.Pipeline.SC.RNASeq as SCRNASeq
 
+import           Taiji.Prelude
 import           Taiji.Pipeline.ATACSeq.Types (ATACSeqConfig (..))
 import           Taiji.Pipeline.SC.ATACSeq.Types (SCATACSeqConfig (..))
 import           Taiji.Pipeline.RNASeq.Types (RNASeqConfig (..))
 import           Taiji.Pipeline.SC.RNASeq.Types (SCRNASeqConfig (..))
-
-import           Taiji.Prelude
 
 instance ATACSeqConfig TaijiConfig where
     _atacseq_output_dir = (<> "/ATACSeq") . _taiji_output_dir
@@ -123,15 +122,15 @@ getCoordConfig ip port fl = do
     str (String x) = T.unpack x
     str _ = error "Expecting string"
 
-commands = [ runParser getCoordConfig
-           , deleteParser
-           , showParser
-           , viewParser
-           , remoteParser (Proxy :: Proxy Remote) ]
-
 main :: IO ()
 main = defaultMain header descr commands wf
   where
     header = printf "Taiji-v%s" $ showVersion version
     descr = "Multi-omics bioinformatics analysis pipline. " <>
         "For more details, see: https://taiji-pipeline.github.io/"
+    commands =
+        [ runParser getCoordConfig
+        , deleteParser
+        , showParser
+        , viewParser
+        , remoteParser (Proxy :: Proxy Remote) ]

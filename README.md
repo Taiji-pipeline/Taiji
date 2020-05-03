@@ -1,6 +1,7 @@
 # Taiji
 
-[![Build Status](https://travis-ci.org/Taiji-pipeline/Taiji.svg?branch=master)](https://travis-ci.org/Taiji-pipeline/Taiji)
+![Continuous integration](https://github.com/Taiji-pipeline/Taiji/workflows/Continuous%20integration/badge.svg)
+![GitHub All Releases](https://img.shields.io/github/downloads/Taiji-pipeline/Taiji/total)
 
 Taiji is an integrated analysis pipeline for analyzing bulk/single-cell ATAC-seq and RNA-seq data.
 Please go to this [website](https://taiji-pipeline.github.io/) for documentation and tutorials. 

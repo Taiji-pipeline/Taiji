@@ -7,31 +7,34 @@ packages:
 extra-deps:
 
 - git:     https://github.com/Taiji-pipeline/Taiji-utils.git
-  commit:  ccb65aae38764cd176ae8f79a9869a1d1f117234
+  commit:  4811e87ff6ce22a3ca3b0c7a19547f18b976274d
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
-  commit:  c1f83502718bb4dff028eaab9493e79ce6634f1b
+  commit:  7db3d5030f85944a1151cc9654676f2c8b151de7
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
-  commit:  e4dd0b2dba06015b960287e18a01072badbcbb0a
+  commit:  07e7828d5ab7b097087d60bc716729dc88741279
 
 - git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
   commit:  e92cb6ce074f612f6152f6970a20f0acebe9c326
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  3bd264eb1cd24ec114b7fa077914334349fe6be1
+  commit:  afd7b0d98a420afa14ee3fcdd103ca9b4f171f6a
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
-  commit:  60e02353a5667d2dde41de9cc34e2c655d135ac0
+  commit:  93f70a4d80c6e3b2878ff27be150648876d5ba9c
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-  commit:  caca3d02d391382ef6a16e49b9bf088116bf40c0
+  commit:  6e7ad0d514324ccbe51ecf97164460d082ca803f
 
 - git:     https://github.com/kaizhang/HsHTSLib.git
   commit:  c116cfa29e33d3142a6cb502f1dc4c02066d0aa9
 
 - git:     https://github.com/kaizhang/ChromVAR.git
-  commit:  d65357474b714e1eed4867b528fbb6995b13b000
+  commit:  5c252643a180bafaf80410767b9afabe8d825104
+
+- git:     https://github.com/kaizhang/matrix-sized.git
+  commit:  b7d1a52a09138366d92fb7c778257baaac9c6cc8
 
 - bioinformatics-toolkit-0.9.3.1
 - haskell-igraph-0.8.0
@@ -39,7 +42,6 @@ extra-deps:
 - bbi-0.1.1
 - clustering-0.4.1
 - jmacro-0.6.16
-- matrix-sized-0.0.3
 
 - git:     https://github.com/haskell-distributed/distributed-static.git
   commit:  d34b5139a0c349fbda6ffea5fbbe960c3c91aeb1

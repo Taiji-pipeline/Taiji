@@ -4,24 +4,148 @@ on: [push]
 jobs:
   build_macos:
     name: Build macos
-    runs-on: macos-latest
+    runs-on: macos-10.15
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
+
+      - name: Cache haskell packages
+        uses: actions/cache@v1
+        env:
+          cache-name: cache-haskell-packages
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-build-${{ env.cache-name }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
 
       - name: Install dependency
         run: brew install haskell-stack
 
       - name: Build
-        run: stack install
+        run: |
+          stack build
+          mv $(stack path --local-install-root)/bin/taiji taiji
+
+      - name: Upload build result
+        uses: actions/upload-artifact@v1
+        with:
+          name: taiji-macOS-Catalina-10.15
+          path: ./taiji
 
   build_ubuntu:
     name: Build ubuntu
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
+
+      - name: Cache haskell packages
+        uses: actions/cache@v1
+        env:
+          cache-name: cache-haskell-packages
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-build-${{ env.cache-name }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
 
       - name: Install dependency
         run: sudo apt-get install haskell-stack
 
       - name: Build
-        run: stack install
+        run: |
+          stack build
+          mv $(stack path --local-install-root)/bin/taiji taiji
+
+      - name: Upload build result
+        uses: actions/upload-artifact@v1
+        with:
+          name: taiji-Ubuntu-x86_64
+          path: ./taiji
+
+  build_centos:
+    name: Build CentOS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Cache haskell packages
+        uses: actions/cache@v1
+        env:
+          cache-name: cache-haskell-packages
+        with:
+          path: ~/.stack
+          key: CentOS-build-${{ env.cache-name }}
+          restore-keys: CentOS-build-${{ env.cache-name }}
+
+      - name: Build
+        run: |
+          docker pull kaizhang/centos-haskell-stack
+          docker run -v ~/.stack:/root/.stack:rw \
+            -v `pwd`:/source:rw kaizhang/centos-haskell-stack \
+            /bin/bash -c \
+            'cd source && stack build --allow-different-user && mv $(stack path --local-install-root --allow-different-user)/bin/taiji /source/taiji'
+          sudo chmod -R 777 ~/.stack
+
+      - name: Upload build result
+        uses: actions/upload-artifact@v1
+        with:
+          name: taiji-CentOS-x86_64
+          path: ./taiji
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    name: Publish
+    runs-on: ubuntu-latest
+    needs: [build_macos, build_ubuntu, build_centos]
+    steps:
+      - name: Download
+        uses: actions/download-artifact@v2
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Taiji ${{ github.ref }}
+          body: |
+            Changes in this Release:
+          draft: false
+          prerelease: false
+
+      - name: Upload macOS
+        id: upload-macOS
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./taiji-macOS-Catalina-10.15/taiji
+          asset_name: taiji-macOS-Catalina-10.15
+          asset_content_type: application/octet-stream
+
+      - name: Upload Ubuntu
+        id: upload-ubuntu
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./taiji-Ubuntu-x86_64/taiji
+          asset_name: taiji-Ubuntu-x86_64
+          asset_content_type: application/octet-stream
+
+      - name: Upload Centos
+        id: upload-centos
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./taiji-CentOS-x86_64/taiji
+          asset_name: taiji-CentOS-x86_64
+          asset_content_type: application/octet-stream

@@ -1,10 +1,10 @@
-Latest
-======
+v1.2.0 (2020-05-03)
+===================
 
 Breaking changes:
 -----------------
 
-- BWA index 
+- Need to include the index prefix when specifying the location of the BWA or RSEM index in config.yml. For example: `(old) path-to-index/bwa_index => (new) path-to-index/bwa_index/GRCh38.fa`.
 
 Other changes:
 --------------
@@ -16,6 +16,8 @@ Other changes:
 - Add basic input validations.
 
 - Implement the chromVAR algorithm in single cell ATAC analysis.
+
+- Bug fixes.
 
 
 v1.1.0 (2020-01-10)

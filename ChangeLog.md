@@ -1,3 +1,8 @@
+Latest
+===================
+
+- Much faster data downloading from GEO by using `fasterq-dump` when available.
+
 v1.2.0 (2020-05-03)
 ===================
 

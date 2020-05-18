@@ -1,7 +1,13 @@
-Latest
+v1.2.1 (2020-05-XX)
 ===================
 
 - Much faster data downloading from GEO by using `fasterq-dump` when available.
+
+- Change peak merging algorithm in single cell ATAC-seq analysis.
+
+- Add `bwa_seed_length` to the configuration.
+
+- Fix worker pool exhaustion when processes being killed unexpectedly.
 
 v1.2.0 (2020-05-03)
 ===================

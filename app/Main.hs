@@ -36,6 +36,7 @@ instance ATACSeqConfig TaijiConfig where
     _atacseq_genome_fasta = _taiji_genome
     _atacseq_genome_index = Just . _taiji_genome_index
     _atacseq_motif_file = _taiji_motif_file
+    _atacseq_bwa_seed_length = _taiji_bwa_seed_length
     _atacseq_callpeak_opts config = def & mode .~ NoModel (-100) 200
         & cutoff .~ QValue (fromMaybe 0.05 $ _taiji_callpeak_fdr config)
         & callSummits .~ True
@@ -58,7 +59,7 @@ instance SCATACSeqConfig TaijiConfig where
     _scatacseq_annotation = _taiji_annotation
     _scatacseq_tmp_dir = _taiji_tmp_dir
     _scatacseq_blacklist = _taiji_blacklist
-    _scatacseq_te_cutoff = fromMaybe 5 . _taiji_te_cutoff
+    _scatacseq_te_cutoff = fromMaybe 5 . _taiji_scatac_te_cutoff
     _scatacseq_minimal_fragment = _taiji_scatac_minimal_fragment
     _scatacseq_cluster_resolution = _taiji_cluster_resolution
     _scatacseq_cluster_optimizer = _taiji_cluster_optimizer
@@ -87,7 +88,7 @@ instance SCRNASeqConfig TaijiConfig where
     _scrnaseq_molecular_barcode_length = fromMaybe
         (error "Please specify UMI length") . _taiji_scrna_umi_length
     _scrnaseq_doublet_score_cutoff = _taiji_scrna_doublet_score_cutoff 
-    _scrnaseq_cluster_resolution = _taiji_cluster_resolution
+    _scrnaseq_cluster_resolutions = _taiji_scrna_cluster_resolutions
     _scrnaseq_cluster_optimizer = _taiji_cluster_optimizer
 
 -- Construct workflow

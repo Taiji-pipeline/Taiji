@@ -1,0 +1,10 @@
+cradle:
+  stack:
+    - path: "./src"
+      component: "Taiji:lib"
+
+    - path: "./app/Main.hs"
+      component: "Taiji:exe:taiji"
+
+    - path: "./app/Paths_Taiji.hs"
+      component: "Taiji:exe:taiji"

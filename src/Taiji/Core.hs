@@ -18,11 +18,12 @@ import           Taiji.Core.RegulatoryElement
 import Taiji.Prelude
 
 aggregate :: MonadIO m
-          => ( [ATACSeq S f1]   -- ^ TFBS
-             , [ATACSeq S f2]   -- ^ peaks for promoter
-             , [HiC S f3]  -- ^ HiC loops
-             , Maybe (File '[] 'Tsv)       -- ^ Expression
-             , Maybe (File '[] 'Tsv) )         -- ^ estimated Expression from ATAC-seq
+          => ( [ATACSeq S f1]
+             , [ATACSeq S f2]
+             , [HiC S f3]
+             , Maybe (File '[] 'Tsv)
+             , Maybe (File '[] 'Tsv) )
+             -- ^ (TFBS, peaks for promoter, HiC loops, expression, estimated expression)
           -> m [ (ATACSeq S f1, f2, Maybe f3, Maybe (File '[] 'Tsv)) ]
 aggregate (tfbs, atac_peaks, hic, rnaE, atacE) = liftIO $ do
     grps <- case expr of

@@ -39,10 +39,10 @@ import Taiji.Core.RegulatoryElement
 import           Taiji.Prelude
 
 -- | Construct and save nodes and edges.
-saveAssociations :: ( ATACSeq S (File tag2 'Bed)         -- ^ TFBS
-                    , Either (File '[] 'NarrowPeak) (File '[Gzip] 'NarrowPeak)  -- ^ promoter activity
-                    , Maybe (File '[ChromosomeLoop] 'Bed)  -- ^ HiC loops
-                    , Maybe (File '[] 'Tsv) )        -- ^ Expression
+saveAssociations :: ( ATACSeq S (File '[Gzip] 'Bed)
+                    , Either (File '[] 'NarrowPeak) (File '[Gzip] 'NarrowPeak)
+                    , Maybe (File '[ChromosomeLoop] 'Bed)
+                    , Maybe (File '[] 'Tsv) )  -- ^ (TFBS, promoter activity, HiC loops, Expression)
                  -> ReaderT TaijiConfig IO
                         (ATACSeq S (File '[] 'Other, File '[] 'Other))
 saveAssociations (tfFl, peakFl, hicFl, expr) = do
@@ -61,7 +61,8 @@ saveAssociations (tfFl, peakFl, hicFl, expr) = do
         expr' <- (fmap . fmap) (\(a,b) -> (sqrt a, exp b)) $ case expr of
             Nothing -> return M.empty
             Just e -> readExpression 1 (B.pack $ T.unpack grp ) $ e^.location
-        tfbs <- runResourceT $ runConduit $ streamBed (tfFl^.replicates._2.files.location) .|
+        tfbs <- runResourceT $ runConduit $
+            streamBedGzip (tfFl^.replicates._2.files.location) .|
             getTFBS (mkPeakMap openSites)
         promoters <- findActivePromoters openSites <$> readPromoters anno 
 

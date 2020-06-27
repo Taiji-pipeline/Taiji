@@ -7,25 +7,25 @@ packages:
 extra-deps:
 
 - git:     https://github.com/Taiji-pipeline/Taiji-utils.git
-  commit:  5e3c181078bd12ddbdacb4c4519bbcbda792c06a
+  commit:  d0cfb760be0ba61edef7e2eda240be0b928203d4
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
-  commit:  62e705b27e66cd09ec940f2e454816ee628f9960
+  commit:  fdd12b584dc995301498627590c89d91cfd43aeb
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
   commit:  07e7828d5ab7b097087d60bc716729dc88741279
 
 - git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
-  commit:  b63cade03fe17bacf95659228b7f86a6f509e436
+  commit:  7f34241225f9033a96050bde6ba958b8519041af
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  a4624136c07eb006ab182f9aa604e78fd120f2e5
+  commit:  35ecbb4be398c9da2a421b80971aadfe209425fd
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
-  commit:  df94993fb62e7a9564abcf2c761adc47e326b92b
+  commit:  4412bdb8aa76b0ea8f8eddaf5bd5ca6c5f15e24d
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-  commit:  4df29385e70930b95f1dfb7881b76bfe83bf1adf
+  commit:  23d0a74223c0d8cfc90d720a014a54c8a0208f36
 
 - git:     https://github.com/kaizhang/HsHTSLib.git
   commit:  c116cfa29e33d3142a6cb502f1dc4c02066d0aa9

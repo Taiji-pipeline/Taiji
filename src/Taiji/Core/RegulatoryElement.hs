@@ -26,6 +26,7 @@ import           Data.List.Ordered       (nubSort)
 import qualified Data.Vector             as V
 
 import           Taiji.Prelude
+import           Taiji.Utils (readGenesValidated)
 
 getHiCLoops :: [HiC N [Either SomeFile (SomeFile, SomeFile)]]
             -> [HiC S (File '[ChromosomeLoop] 'Bed)]
@@ -146,7 +147,7 @@ getDistalDomain3D promoters =
 
 -- | Get a list of potential TSS from GTF file
 readPromoters :: FilePath -> IO [Promoter]
-readPromoters = (fmap . concatMap) fn . readGenes
+readPromoters = (fmap . concatMap) fn . readGenesValidated
   where
     fn Gene{..} = map g $ nubSort tss
       where

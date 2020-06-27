@@ -21,14 +21,15 @@ import Taiji.Core.Ranking
 import           Taiji.Prelude
 import Taiji.Utils
 
-prepareData :: (a  -- ^ TFBS
-               , [(B.ByteString, File t1 'NarrowPeak)]  -- ^ Peaks
-               , Maybe (File t2 'Tsv) ) -- ^ Expression
+prepareData :: (a
+               , [(B.ByteString, File t1 'NarrowPeak)]
+               , Maybe (File t2 'Tsv) )
+               -- ^ (TFBS, Peaks, Expression)
             -> [(a, ((B.ByteString, File t1 'NarrowPeak), File t2 'Tsv))]
 prepareData (tfFl, peaks, Just expr) = zip (repeat tfFl) $ zip peaks $ repeat expr
 prepareData _ = []
 
-computeRanksCluster :: ( [(B.ByteString, Maybe (File '[] 'BigBed))]  -- ^ TFBS
+computeRanksCluster :: ( [(B.ByteString, Maybe (File '[] 'BigBed))]
                        , ((B.ByteString, File t1 'NarrowPeak), File t2 'Tsv) )
                     -> ReaderT TaijiConfig IO
                         (T.Text, [(GeneName, (Double, Double))])

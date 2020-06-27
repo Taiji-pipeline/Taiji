@@ -1,4 +1,4 @@
-v1.2.1 (2020-05-XX)
+v1.2.1 (2020-06-27)
 ===================
 
 - Much faster data downloading from GEO by using `fasterq-dump` when available.
@@ -8,6 +8,8 @@ v1.2.1 (2020-05-XX)
 - Add `bwa_seed_length` to the configuration.
 
 - Fix worker pool exhaustion when processes being killed unexpectedly.
+
+- bug fix: #5
 
 v1.2.0 (2020-05-03)
 ===================

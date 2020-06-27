@@ -103,14 +103,13 @@ outputRanks _ _ _ [] = return ()
 outputRanks rankFl pValueFl pltFl inputs = do
     DF.writeTable rankFl (T.pack . show) $ fst $ DF.unzip df
     DF.writeTable pValueFl (T.pack . show) $ snd $ DF.unzip df
-    savePlots pltFl [] [toolbox >+> plt]
+    unless (null tfs) $ savePlots pltFl [] [toolbox >+> plt]
   where
     ranks = map (M.fromList . snd) inputs
     genes = nubSort $ concatMap M.keys ranks
     df = DF.transpose $ DF.mkDataFrame (map fst inputs)
         (map (T.pack . B.unpack . original) genes) $ flip map ranks $ \r ->
         flip map genes $ \g -> M.lookupDefault (0,1) g r
-
     tfs = nubSort $ flip concatMap
         (Mat.toColumns $ snd $ Mat.unzip $ DF._dataframe_data df) $ \pval ->
             V.toList $ fst $ V.unzip $ filterFDR 0.001 $

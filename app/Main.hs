@@ -28,6 +28,7 @@ import           Taiji.Pipeline.SC.ATACSeq.Types (SCATACSeqConfig (..))
 import           Taiji.Pipeline.RNASeq.Types (RNASeqConfig (..))
 import           Taiji.Pipeline.SC.RNASeq.Types (SCRNASeqConfig (..))
 
+
 instance ATACSeqConfig TaijiConfig where
     _atacseq_output_dir = (<> "/ATACSeq") . _taiji_output_dir
     _atacseq_input = _taiji_input
@@ -61,7 +62,7 @@ instance SCATACSeqConfig TaijiConfig where
     _scatacseq_blacklist = _taiji_blacklist
     _scatacseq_te_cutoff = fromMaybe 5 . _taiji_scatac_te_cutoff
     _scatacseq_minimal_fragment = _taiji_scatac_minimal_fragment
-    _scatacseq_cluster_resolution = _taiji_cluster_resolution
+    _scatacseq_cluster_resolutions = _taiji_scatac_cluster_resolutions
     _scatacseq_cluster_optimizer = _taiji_cluster_optimizer
     _scatacseq_doublet_score_cutoff = _taiji_scrna_doublet_score_cutoff 
     _scatacseq_cluster_by_window = const False

@@ -10,7 +10,7 @@ extra-deps:
   commit:  d0cfb760be0ba61edef7e2eda240be0b928203d4
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
-  commit:  b0ff06817aa2930ba33cd9363b771f0bbe84cace
+  commit:  f06aebdcda6cc5ee814aa02857455d6a2da6fc43
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
   commit:  07e7828d5ab7b097087d60bc716729dc88741279
@@ -19,13 +19,13 @@ extra-deps:
   commit:  7f34241225f9033a96050bde6ba958b8519041af
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  35ecbb4be398c9da2a421b80971aadfe209425fd
+  commit:  9a10f90ba67ccadcd2cbe24ef3dd373e64327208
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
   commit:  4412bdb8aa76b0ea8f8eddaf5bd5ca6c5f15e24d
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-  commit:  23d0a74223c0d8cfc90d720a014a54c8a0208f36
+  commit:  de3f267440bbbeada1ef9eace42abccb3919cd5e
 
 - git:     https://github.com/kaizhang/HsHTSLib.git
   commit:  c116cfa29e33d3142a6cb502f1dc4c02066d0aa9
@@ -36,9 +36,13 @@ extra-deps:
 - git:     https://github.com/kaizhang/matrix-sized.git
   commit:  c58c2ccae708226faab1dce9545364a39f5a2076
 
-- bioinformatics-toolkit-0.9.3.1
-- haskell-igraph-0.8.0
+- git:     https://github.com/kaizhang/bioinformatics-toolkit.git
+  commit:  b13e630aaea6c26c918446c3495c8b54c3bd8257
+  subdirs:
+      - bioinformatics-toolkit
+#- bioinformatics-toolkit-0.9.3.1
 
+- haskell-igraph-0.8.0
 - bbi-0.1.1
 - clustering-0.4.1
 - jmacro-0.6.16

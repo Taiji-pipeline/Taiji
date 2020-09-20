@@ -42,6 +42,7 @@ instance ATACSeqConfig TaijiConfig where
         & cutoff .~ QValue (fromMaybe 0.05 $ _taiji_callpeak_fdr config)
         & callSummits .~ True
         & gSize .~ _taiji_callpeak_genome_size config
+        & tmpDir .~ fromMaybe "./" (_atacseq_tmp_dir config)
     _atacseq_annotation = _taiji_annotation
     _atacseq_tmp_dir = _taiji_tmp_dir
 
@@ -57,6 +58,7 @@ instance SCATACSeqConfig TaijiConfig where
         & cutoff .~ QValue (fromMaybe 0.01 $ _taiji_callpeak_fdr config)
         & callSummits .~ True
         & gSize .~ _taiji_callpeak_genome_size config
+        & tmpDir .~ fromMaybe "./" (_scatacseq_tmp_dir config)
     _scatacseq_annotation = _taiji_annotation
     _scatacseq_tmp_dir = _taiji_tmp_dir
     _scatacseq_blacklist = _taiji_blacklist

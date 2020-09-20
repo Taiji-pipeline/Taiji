@@ -21,7 +21,8 @@ import Control.Arrow ((&&&))
 import           Bio.Utils.Misc                    (readDouble)
 import           Bio.Pipeline.Utils                (getPath, asDir)
 import Control.Monad.State.Strict
-import           Bio.Data.Bed
+import           Bio.Data.Bed hiding (NarrowPeak)
+import           Bio.Data.Bed (NarrowPeak)
 import Data.Conduit.Internal (zipSinks)
 import qualified Data.IntervalMap.Strict as IM
 import qualified Data.Set as S

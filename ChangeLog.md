@@ -1,3 +1,8 @@
+v1.2.2 ()
+===================
+
+- Create signal enrichment bigwig file for the ATAC-seq pipeline.
+
 v1.2.1 (2020-06-27)
 ===================
 

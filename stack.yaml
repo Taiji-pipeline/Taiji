@@ -21,12 +21,12 @@ extra-deps:
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
   commit:  9a10f90ba67ccadcd2cbe24ef3dd373e64327208
 
-- git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
-  commit:  4412bdb8aa76b0ea8f8eddaf5bd5ca6c5f15e24d
+#- git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
+#  commit:  4412bdb8aa76b0ea8f8eddaf5bd5ca6c5f15e24d
+- '../Taiji-scRNA-seq'
 
-#- git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-#  commit:  de3f267440bbbeada1ef9eace42abccb3919cd5e
-- '../Taiji-scATAC-seq'
+- git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
+  commit:  17fde35d9fa76a882cc7dee7774f14d12b88281c
 
 - git:     https://github.com/kaizhang/HsHTSLib.git
   commit:  c116cfa29e33d3142a6cb502f1dc4c02066d0aa9

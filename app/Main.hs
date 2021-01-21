@@ -68,6 +68,7 @@ instance SCATACSeqConfig TaijiConfig where
     _scatacseq_cluster_optimizer = _taiji_cluster_optimizer
     _scatacseq_doublet_score_cutoff = _taiji_scrna_doublet_score_cutoff 
     _scatacseq_cluster_by_window = const False
+    _scatacseq_cell_barcode_length = _taiji_scatac_cell_barcode_length
 
 instance RNASeqConfig TaijiConfig where
     _rnaseq_assembly = _taiji_assembly

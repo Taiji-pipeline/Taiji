@@ -1,5 +1,4 @@
-resolver: nightly-2019-05-25
-#resolver: nightly-2020-01-17
+resolver: nightly-2021-01-20
 
 packages:
 - '.'
@@ -13,7 +12,7 @@ extra-deps:
   commit:  e4a33d287fe052dc53032407e113ce031384f09f
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
-  commit:  32182f48c77eedea0d9e6058c4227b341472a145
+  commit:  e26552d2285a84548e32549e1776f67113e30dcc
 
 - git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
   commit:  7f34241225f9033a96050bde6ba958b8519041af
@@ -36,24 +35,26 @@ extra-deps:
 - git:     https://github.com/kaizhang/matrix-sized.git
   commit:  c58c2ccae708226faab1dce9545364a39f5a2076
 
+- git:     https://github.com/kaizhang/haskell-igraph.git
+  commit:  78ac7c8e0fc507e6173c8990022b101254c2a795
+
 - git:     https://github.com/kaizhang/bioinformatics-toolkit.git
   commit:  426ee4e6ddb620579d4483fb692ed454077b807b
   subdirs:
       - bioinformatics-toolkit
 
-- haskell-igraph-0.8.0
 - bbi-0.1.1
 - clustering-0.4.1
-- jmacro-0.6.16
+- jmacro-0.6.17
 
-- git:     https://github.com/haskell-distributed/distributed-process.git
-  commit:  660d554f6acd2dba8b605c84e8fa69e45708bc14
+- git:     https://github.com/patrickt/distributed-process.git
+  commit:  645bc55c1b0b0d18227d1fc093379967c74af669
 - distributed-process-monad-control-0.5.1.3
-- network-transport-tcp-0.7.0
+- network-transport-tcp-0.8.0
 - distributed-static-0.3.9
 
 - git:     https://github.com/kaizhang/SciFlow.git
-  commit:  f16e9ab5ce3abb37da259ab92d68cbf45020d241
+  commit:  40df4c8c651e79db3dc8507224a30b978d28ced0
   subdirs:
       - SciFlow
       - SciFlow-app

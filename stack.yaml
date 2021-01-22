@@ -3,6 +3,10 @@ resolver: nightly-2021-01-20
 packages:
 - '.'
 
+flags:
+  cryptonite:
+    use_target_attributes: false
+
 extra-deps:
 
 - git:     https://github.com/Taiji-pipeline/Taiji-utils.git
@@ -36,7 +40,7 @@ extra-deps:
   commit:  c58c2ccae708226faab1dce9545364a39f5a2076
 
 - git:     https://github.com/kaizhang/haskell-igraph.git
-  commit:  78ac7c8e0fc507e6173c8990022b101254c2a795
+  commit:  ad655dee4754ea4c224b85bc24100e4d5ad69042
 
 - git:     https://github.com/kaizhang/bioinformatics-toolkit.git
   commit:  426ee4e6ddb620579d4483fb692ed454077b807b

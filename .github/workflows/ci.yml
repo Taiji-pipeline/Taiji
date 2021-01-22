@@ -9,7 +9,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Cache haskell packages
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         env:
           cache-name: cache-haskell-packages
         with:
@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Cache haskell packages
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         env:
           cache-name: cache-haskell-packages
         with:
@@ -73,7 +73,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Cache haskell packages
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         env:
           cache-name: cache-haskell-packages
         with:

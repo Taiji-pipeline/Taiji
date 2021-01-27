@@ -9,8 +9,10 @@ flags:
 
 extra-deps:
 
-- git:     https://github.com/Taiji-pipeline/Taiji-utils.git
-  commit:  bcb89db69e6b9ec4fbedcdd40a394162768ac3d4
+#- git:     https://github.com/Taiji-pipeline/Taiji-utils.git
+#  commit:  bcb89db69e6b9ec4fbedcdd40a394162768ac3d4
+
+- '../Taiji-utils'
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
   commit:  e4a33d287fe052dc53032407e113ce031384f09f
@@ -27,8 +29,9 @@ extra-deps:
 - git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
   commit:  a66a1fa85a1f16827a3450f90107e91f77be137e
 
-- git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-  commit:  2be17cbaa5c32e996d0ad05582f36e3b22a8979d
+#- git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
+#  commit:  2be17cbaa5c32e996d0ad05582f36e3b22a8979d
+- '../Taiji-scATAC-seq'
 
 - git:     https://github.com/kaizhang/HsHTSLib.git
   commit:  c116cfa29e33d3142a6cb502f1dc4c02066d0aa9

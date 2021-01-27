@@ -1,7 +1,9 @@
 v1.2.2 ()
 ===================
 
+- A lof of improvments on single cell analysis pipeline.
 - Create signal enrichment bigwig file for the ATAC-seq pipeline.
+- Bug fix: #19
 
 v1.2.1 (2020-06-27)
 ===================

@@ -13,10 +13,8 @@ module Taiji.Core.Ranking
 
 import           Control.Monad
 import           Control.Monad.ST (runST)
-import           Control.Monad.Reader              (asks, ReaderT)
 import qualified Data.ByteString.Char8             as B
 import           Data.CaseInsensitive              (original)
-import           Data.List                         (sort)
 import           Data.List.Ordered                 (nubSort)
 import qualified Data.HashMap.Strict                   as M
 import qualified Data.Text                         as T
@@ -103,7 +101,7 @@ outputRanks _ _ _ [] = return ()
 outputRanks rankFl pValueFl pltFl inputs = do
     DF.writeTable rankFl (T.pack . show) $ fst $ DF.unzip df
     DF.writeTable pValueFl (T.pack . show) $ snd $ DF.unzip df
-    unless (null tfs) $ savePlots pltFl [] [toolbox >+> plt]
+    unless (DF.isEmpty df') $ savePlots pltFl [] [toolbox >+> heatmap df']
   where
     ranks = map (M.fromList . snd) inputs
     genes = nubSort $ concatMap M.keys ranks
@@ -114,6 +112,6 @@ outputRanks rankFl pValueFl pltFl inputs = do
         (Mat.toColumns $ snd $ Mat.unzip $ DF._dataframe_data df) $ \pval ->
             V.toList $ fst $ V.unzip $ filterFDR 0.001 $
             V.zip (V.fromList $ DF.rowNames df) pval
-    plt = heatmap $ DF.orderDataFrame id $ DF.mapRows scale $
+    df' = DF.orderDataFrame id $ DF.mapRows scale $
         DF.filterRows (const $ \xs -> V.maximum xs / V.minimum xs > 2) $
         (fst $ DF.unzip df) `DF.rsub` tfs

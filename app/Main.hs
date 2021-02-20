@@ -21,6 +21,7 @@ import qualified Taiji.Pipeline.ATACSeq as ATACSeq
 import qualified Taiji.Pipeline.SC.ATACSeq as SCATACSeq
 import qualified Taiji.Pipeline.RNASeq as RNASeq
 import qualified Taiji.Pipeline.SC.RNASeq as SCRNASeq
+import qualified Taiji.Pipeline.Fusion as Fusion
 
 import           Taiji.Prelude
 import           Taiji.Pipeline.ATACSeq.Types (ATACSeqConfig (..))
@@ -64,7 +65,8 @@ instance SCATACSeqConfig TaijiConfig where
     _scatacseq_blacklist = _taiji_blacklist
     _scatacseq_te_cutoff = fromMaybe 5 . _taiji_scatac_te_cutoff
     _scatacseq_minimal_fragment = _taiji_scatac_minimal_fragment
-    _scatacseq_cluster_resolutions = _taiji_scatac_cluster_resolutions
+    _scatacseq_cluster_resolution_list = _taiji_scatac_cluster_resolution_list
+    _scatacseq_cluster_resolution = _taiji_scatac_cluster_resolution
     _scatacseq_cluster_optimizer = _taiji_cluster_optimizer
     _scatacseq_doublet_score_cutoff = _taiji_scrna_doublet_score_cutoff 
     _scatacseq_cluster_by_window = const False
@@ -93,7 +95,8 @@ instance SCRNASeqConfig TaijiConfig where
     _scrnaseq_molecular_barcode_length = fromMaybe
         (error "Please specify UMI length") . _taiji_scrna_umi_length
     _scrnaseq_doublet_score_cutoff = _taiji_scrna_doublet_score_cutoff 
-    _scrnaseq_cluster_resolutions = _taiji_scrna_cluster_resolutions
+    _scrnaseq_cluster_resolution_list = _taiji_scrna_cluster_resolution_list
+    _scrnaseq_cluster_resolution = _taiji_scrna_cluster_resolution
     _scrnaseq_cluster_optimizer = _taiji_cluster_optimizer
 
 -- Construct workflow
@@ -113,6 +116,8 @@ build "wf" [t| SciFlow TaijiConfig |] $ do
     --    "DropSeq_Quantification" ] ~> "Compute_Ranks_SC_Prep"
     ["SCATAC_Find_TFBS", "SCATAC_Call_Peaks", "SCATAC_Gene_Acc"] ~>
         "Compute_Ranks_SC_Prep"
+
+    Fusion.builder
 
 getCoordConfig :: String -> Int -> FilePath -> IO RemoteConfig
 getCoordConfig ip port fl = do

@@ -1,4 +1,4 @@
-resolver: nightly-2021-01-20
+resolver: lts-17.4
 
 packages:
 - '.'
@@ -9,16 +9,14 @@ flags:
 
 extra-deps:
 
-#- git:     https://github.com/Taiji-pipeline/Taiji-utils.git
-#  commit:  bcb89db69e6b9ec4fbedcdd40a394162768ac3d4
-
-- '../Taiji-utils'
+- git:     https://github.com/Taiji-pipeline/Taiji-utils.git
+  commit:  3a42e300cc9c98a18647964a59bada44cfedee2b
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
-  commit:  e4a33d287fe052dc53032407e113ce031384f09f
+  commit:  2306c271f1147b2825aa4d7ec17bcacf01682bd4
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
-  commit:  e26552d2285a84548e32549e1776f67113e30dcc
+  commit:  62e821383792ff5057a959e1082369adc79e26b6
 
 - git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
   commit:  7f34241225f9033a96050bde6ba958b8519041af
@@ -27,11 +25,13 @@ extra-deps:
   commit:  9a10f90ba67ccadcd2cbe24ef3dd373e64327208
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
-  commit:  a66a1fa85a1f16827a3450f90107e91f77be137e
+  commit:  59449752fa4ec60f269bbe9d13d8a19bb591d17b
 
-#- git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-#  commit:  2be17cbaa5c32e996d0ad05582f36e3b22a8979d
-- '../Taiji-scATAC-seq'
+- git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
+  commit:  2bbde0991a6c4b5767974ac509654c982230357d
+
+- git:     https://github.com/Taiji-pipeline/Taiji-fusion.git
+  commit:  a2ef0b3c162028ba1bd89c7f151b3e703f4cde8d
 
 - git:     https://github.com/kaizhang/HsHTSLib.git
   commit:  c116cfa29e33d3142a6cb502f1dc4c02066d0aa9

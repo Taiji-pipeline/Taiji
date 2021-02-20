@@ -1,5 +1,5 @@
 name:                Taiji
-version:             1.2.1.1
+version:             1.2.1.2
 synopsis:            Multi-omics bioinformatics analysis pipeline
 description:         Taiji is an integrated multi-omics bioinformatics analysis
                      pipeline. It can analyze ATAC-seq, RNA-seq, single cell
@@ -10,7 +10,7 @@ license:             BSD3
 license-file:        LICENSE
 author:              Kai Zhang
 maintainer:          kai@kzhang.org
-copyright:           (c) 2017-2020 Kai Zhang
+copyright:           (c) 2017-2021 Kai Zhang
 category:            Bio
 build-type:          Simple
 extra-source-files:
@@ -89,6 +89,7 @@ executable taiji
                      , Taiji-RNA-seq
                      , Taiji-scRNA-seq
                      , Taiji-scATAC-seq
+                     , Taiji-fusion
                      , Taiji-utils
                      , unordered-containers
                      , yaml

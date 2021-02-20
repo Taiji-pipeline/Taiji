@@ -17,8 +17,6 @@ jobs:
           key: ${{ runner.os }}-build-${{ env.cache-name }}
           restore-keys: |
             ${{ runner.os }}-build-${{ env.cache-name }}
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
 
       - name: Install dependency
         run: brew install haskell-stack
@@ -49,8 +47,6 @@ jobs:
           key: ${{ runner.os }}-build-${{ env.cache-name }}
           restore-keys: |
             ${{ runner.os }}-build-${{ env.cache-name }}
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
 
       - name: Install dependency
         run: sudo apt-get install haskell-stack

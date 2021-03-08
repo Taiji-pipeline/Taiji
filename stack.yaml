@@ -10,13 +10,13 @@ flags:
 extra-deps:
 
 - git:     https://github.com/Taiji-pipeline/Taiji-utils.git
-  commit:  3a42e300cc9c98a18647964a59bada44cfedee2b
+  commit:  b444a0818045559d39263aa8d0d778115ab1712f
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
-  commit:  2306c271f1147b2825aa4d7ec17bcacf01682bd4
+  commit:  a001951bd3a91f1b35870f929019d838dc941778
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
-  commit:  62e821383792ff5057a959e1082369adc79e26b6
+  commit:  40543900821258e4186d8fc1c0a0538d50c41d59
 
 - git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
   commit:  7f34241225f9033a96050bde6ba958b8519041af
@@ -25,10 +25,10 @@ extra-deps:
   commit:  9a10f90ba67ccadcd2cbe24ef3dd373e64327208
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
-  commit:  59449752fa4ec60f269bbe9d13d8a19bb591d17b
+  commit:  8a3c6f6ebb60aee244e581d78390389e346b60c5
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-  commit:  2bbde0991a6c4b5767974ac509654c982230357d
+  commit:  4cbedcfa1425124a8eb322f9668ed34e04fdf963
 
 - git:     https://github.com/Taiji-pipeline/Taiji-fusion.git
   commit:  a2ef0b3c162028ba1bd89c7f151b3e703f4cde8d
@@ -40,7 +40,7 @@ extra-deps:
   commit:  d64dd55579c8db9625028065b4cb3314e8f0c4a9
 
 - git:     https://github.com/kaizhang/matrix-sized.git
-  commit:  c58c2ccae708226faab1dce9545364a39f5a2076
+  commit:  a0f7af7827d6159fe793dbc25f11525e4c439950
 
 - git:     https://github.com/kaizhang/haskell-igraph.git
   commit:  ad655dee4754ea4c224b85bc24100e4d5ad69042
@@ -61,7 +61,7 @@ extra-deps:
 - distributed-static-0.3.9
 
 - git:     https://github.com/kaizhang/SciFlow.git
-  commit:  40df4c8c651e79db3dc8507224a30b978d28ced0
+  commit:  c094c0483afa1e262c6048101d2566a76e2e9b19
   subdirs:
       - SciFlow
       - SciFlow-app

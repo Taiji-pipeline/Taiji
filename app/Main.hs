@@ -50,6 +50,7 @@ instance ATACSeqConfig TaijiConfig where
 instance SCATACSeqConfig TaijiConfig where
     _scatacseq_output_dir = (<> "/SCATACSeq") . _taiji_output_dir
     _scatacseq_input = _taiji_input
+    _scatacseq_batch_info = _taiji_batch_info
     _scatacseq_assembly = _taiji_assembly
     _scatacseq_bwa_index = Just . _taiji_bwa_index
     _scatacseq_genome_fasta = _taiji_genome
@@ -83,6 +84,7 @@ instance RNASeqConfig TaijiConfig where
     _rnaseq_tmp_dir = _taiji_tmp_dir
 
 instance SCRNASeqConfig TaijiConfig where
+    _scrnaseq_batch_info = _taiji_batch_info
     _scrnaseq_genome_fasta = _taiji_genome
     _scrnaseq_star_index = _taiji_star_index
     _scrnaseq_annotation = fromMaybe
@@ -90,10 +92,8 @@ instance SCRNASeqConfig TaijiConfig where
     _scrnaseq_input = _taiji_input
     _scrnaseq_output_dir = (<> "/SCRNASeq") . _taiji_output_dir
     _scrnaseq_tmp_dir = _taiji_tmp_dir
-    _scrnaseq_cell_barcode_length = fromMaybe
-        (error "Please specify cell barcode length") . _taiji_scrna_cell_barcode_length 
-    _scrnaseq_molecular_barcode_length = fromMaybe
-        (error "Please specify UMI length") . _taiji_scrna_umi_length
+    _scrnaseq_cell_barcode_length = _taiji_scrna_cell_barcode_length 
+    _scrnaseq_molecular_barcode_length = _taiji_scrna_umi_length
     _scrnaseq_doublet_score_cutoff = _taiji_scrna_doublet_score_cutoff 
     _scrnaseq_cluster_resolution_list = _taiji_scrna_cluster_resolution_list
     _scrnaseq_cluster_resolution = _taiji_scrna_cluster_resolution

@@ -18,19 +18,14 @@ module Taiji.Core.Network.DeNovo
     ) where
 
 import Control.Arrow ((&&&))
-import           Bio.Utils.Misc                    (readDouble)
-import           Bio.Pipeline.Utils                (getPath, asDir)
 import Control.Monad.State.Strict
 import           Bio.Data.Bed hiding (NarrowPeak)
 import           Bio.Data.Bed (NarrowPeak)
 import Data.Conduit.Internal (zipSinks)
 import qualified Data.IntervalMap.Strict as IM
 import qualified Data.Set as S
-import           Control.Monad.Reader              (asks, ReaderT)
 import qualified Data.ByteString.Char8             as B
 import           Data.CaseInsensitive              (mk)
-import Data.Ord (comparing)
-import Data.Function (on)
 import qualified Data.HashMap.Strict                   as M
 import qualified Data.Text                         as T
 import IGraph
@@ -188,7 +183,7 @@ outputBindingEdges output = filterC isBinding .|
     header = ":START_ID,:END_ID,chr,start:int,end:int," <>
         "annotation,affinity,:TYPE"
     isBinding e = case _edge_type e of
-        Binding{..} -> True
+        Binding{} -> True
         _ -> False
 {-# INLINE outputBindingEdges #-}
 

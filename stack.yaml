@@ -6,11 +6,14 @@ packages:
 flags:
   cryptonite:
     use_target_attributes: false
+  matrix-sized:
+    parallel: false
 
 extra-deps:
 
-- git:     https://github.com/Taiji-pipeline/Taiji-utils.git
-  commit:  b444a0818045559d39263aa8d0d778115ab1712f
+#- git:     https://github.com/Taiji-pipeline/Taiji-utils.git
+#  commit:  3e8ffe4db15cc05b838c9931bac1661bf1eb700a
+- '../Taiji-utils'
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
   commit:  a001951bd3a91f1b35870f929019d838dc941778
@@ -22,13 +25,15 @@ extra-deps:
   commit:  7f34241225f9033a96050bde6ba958b8519041af
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  9a10f90ba67ccadcd2cbe24ef3dd373e64327208
+  commit:  1b851f71b41ace8a731fe3188f9eeed457a034e2
 
-- git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
-  commit:  8a3c6f6ebb60aee244e581d78390389e346b60c5
+#- git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
+#  commit:  8a3c6f6ebb60aee244e581d78390389e346b60c5
+- '../Taiji-scRNA-seq'
 
-- git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-  commit:  4cbedcfa1425124a8eb322f9668ed34e04fdf963
+#- git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
+#  commit:  4cbedcfa1425124a8eb322f9668ed34e04fdf963
+- '../Taiji-scATAC-seq'
 
 - git:     https://github.com/Taiji-pipeline/Taiji-fusion.git
   commit:  a2ef0b3c162028ba1bd89c7f151b3e703f4cde8d
@@ -40,10 +45,10 @@ extra-deps:
   commit:  d64dd55579c8db9625028065b4cb3314e8f0c4a9
 
 - git:     https://github.com/kaizhang/matrix-sized.git
-  commit:  a0f7af7827d6159fe793dbc25f11525e4c439950
+  commit:  aed69651b2da5ca4c9076c8c4d981b876932e5b8
 
 - git:     https://github.com/kaizhang/haskell-igraph.git
-  commit:  ad655dee4754ea4c224b85bc24100e4d5ad69042
+  commit:  d790e030e6e08b04dc0971221b6054d6700d82e7
 
 - git:     https://github.com/kaizhang/bioinformatics-toolkit.git
   commit:  426ee4e6ddb620579d4483fb692ed454077b807b
@@ -60,9 +65,13 @@ extra-deps:
 - network-transport-tcp-0.8.0
 - distributed-static-0.3.9
 
-- git:     https://github.com/kaizhang/SciFlow.git
-  commit:  c094c0483afa1e262c6048101d2566a76e2e9b19
-  subdirs:
-      - SciFlow
-      - SciFlow-app
-      - SciFlow-remote
+#- git:     https://github.com/kaizhang/SciFlow.git
+#  commit:  c094c0483afa1e262c6048101d2566a76e2e9b19
+#  subdirs:
+#      - SciFlow
+#      - SciFlow-app
+#      - SciFlow-remote
+
+- '../../SciFlow/SciFlow'
+- '../../SciFlow/SciFlow-app'
+- '../../SciFlow/SciFlow-remote'

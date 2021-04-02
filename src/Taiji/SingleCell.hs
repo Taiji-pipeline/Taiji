@@ -10,7 +10,6 @@ import Control.Monad.State.Strict
 import           Bio.Data.Bed hiding (NarrowPeak)
 import           Bio.Data.Bed (NarrowPeak)
 import           Conduit
-import           Control.Monad.Reader              (asks, ReaderT)
 import qualified Data.ByteString.Char8             as B
 import qualified Data.Text as T
 import qualified Data.HashMap.Strict                   as M

@@ -4,7 +4,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Taiji.Core (builder) where
 
-import           Bio.Pipeline (getPath)
 import           Bio.Data.Experiment.Parser (mkInputReader)
 import Bio.Data.Experiment.Types
 import qualified Data.ByteString.Char8 as B

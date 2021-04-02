@@ -14,9 +14,8 @@ module Taiji.Core.RegulatoryElement
     ) where
 
 import           Bio.Data.Bed
-import           Bio.Data.Bed.Types (BED3(..), fromSorted)
+import           Bio.Data.Bed.Types (fromSorted)
 import           Bio.RealWorld.GENCODE
-import           Bio.Utils.Misc          (readInt)
 import Control.Arrow (second)
 import qualified Data.ByteString.Char8   as B
 import           Data.Either             (lefts)

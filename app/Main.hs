@@ -63,15 +63,16 @@ instance SCATACSeqConfig TaijiConfig where
     _scatacseq_annotation = _taiji_annotation
     _scatacseq_tmp_dir = _taiji_tmp_dir
     _scatacseq_blacklist = _taiji_blacklist
-    _scatacseq_te_cutoff = fromMaybe 5 . _taiji_scatac_te_cutoff
-    _scatacseq_minimal_fragment = _taiji_scatac_minimal_fragment
-    _scatacseq_cluster_resolution_list = _taiji_scatac_cluster_resolution_list
-    _scatacseq_cluster_resolution = _taiji_scatac_cluster_resolution
-    _scatacseq_subcluster_resolution = _taiji_scatac_subcluster_resolution
-    _scatacseq_cluster_optimizer = _taiji_cluster_optimizer
-    _scatacseq_doublet_score_cutoff = _taiji_scatac_doublet_score_cutoff 
-    _scatacseq_cluster_by_window = _taiji_scatac_cluster_by_window
-    _scatacseq_cell_barcode_length = _taiji_scatac_cell_barcode_length
+    _scatacseq_te_cutoff = _scatac_te_cutoff . _taiji_scatac_options
+    _scatacseq_minimal_fragment = _scatac_minimal_fragment . _taiji_scatac_options
+    _scatacseq_cluster_resolution_list = _scatac_cluster_resolution_list . _taiji_scatac_options
+    _scatacseq_cluster_resolution = _scatac_cluster_resolution . _taiji_scatac_options
+    _scatacseq_subcluster_resolution = _scatac_subcluster_resolution . _taiji_scatac_options
+    _scatacseq_cluster_optimizer = _scatac_cluster_optimizer . _taiji_scatac_options
+    _scatacseq_doublet_score_cutoff = _scatac_doublet_score_cutoff . _taiji_scatac_options
+    _scatacseq_cluster_by_window = _scatac_cluster_by_window . _taiji_scatac_options
+    _scatacseq_window_size = _scatac_window_size . _taiji_scatac_options
+    _scatacseq_cell_barcode_length = _scatac_cell_barcode_length . _taiji_scatac_options
 
 instance RNASeqConfig TaijiConfig where
     _rnaseq_assembly = _taiji_assembly
@@ -92,12 +93,12 @@ instance SCRNASeqConfig TaijiConfig where
     _scrnaseq_input = _taiji_input
     _scrnaseq_output_dir = (<> "/SCRNASeq") . _taiji_output_dir
     _scrnaseq_tmp_dir = _taiji_tmp_dir
-    _scrnaseq_cell_barcode_length = _taiji_scrna_cell_barcode_length 
-    _scrnaseq_molecular_barcode_length = _taiji_scrna_umi_length
-    _scrnaseq_doublet_score_cutoff = _taiji_scrna_doublet_score_cutoff 
-    _scrnaseq_cluster_resolution_list = _taiji_scrna_cluster_resolution_list
-    _scrnaseq_cluster_resolution = _taiji_scrna_cluster_resolution
-    _scrnaseq_cluster_optimizer = _taiji_cluster_optimizer
+    _scrnaseq_cell_barcode_length = _scrna_cell_barcode_length . _taiji_scrna_options
+    _scrnaseq_molecular_barcode_length = _scrna_umi_length . _taiji_scrna_options
+    _scrnaseq_doublet_score_cutoff = _scrna_doublet_score_cutoff . _taiji_scrna_options
+    _scrnaseq_cluster_resolution_list = _scrna_cluster_resolution_list . _taiji_scrna_options
+    _scrnaseq_cluster_resolution = _scrna_cluster_resolution . _taiji_scrna_options
+    _scrnaseq_cluster_optimizer = _scrna_cluster_optimizer . _taiji_scrna_options
 
 -- Construct workflow
 build "wf" [t| SciFlow TaijiConfig |] $ do
@@ -132,6 +133,7 @@ getCoordConfig ip port fl = do
   where
     str (String x) = T.unpack x
     str _ = error "Expecting string"
+
 
 main :: IO ()
 main = defaultMain header descr commands wf

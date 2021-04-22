@@ -11,12 +11,11 @@ flags:
 
 extra-deps:
 
-#- git:     https://github.com/Taiji-pipeline/Taiji-utils.git
-#  commit:  3e8ffe4db15cc05b838c9931bac1661bf1eb700a
-- '../Taiji-utils'
+- git:     https://github.com/Taiji-pipeline/Taiji-utils.git
+  commit:  d28830609a4719e0310636971ac7ddd17a02504a 
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
-  commit:  a001951bd3a91f1b35870f929019d838dc941778
+  commit:  6a7a615a23d7f17287698fe205347924b470b7f5
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
   commit:  40543900821258e4186d8fc1c0a0538d50c41d59
@@ -27,13 +26,11 @@ extra-deps:
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
   commit:  1b851f71b41ace8a731fe3188f9eeed457a034e2
 
-#- git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
-#  commit:  8a3c6f6ebb60aee244e581d78390389e346b60c5
-- '../Taiji-scRNA-seq'
+- git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
+  commit:  f513e533dc23953fa65076bf2debc8c68c9f6d79
 
-#- git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-#  commit:  4cbedcfa1425124a8eb322f9668ed34e04fdf963
-- '../Taiji-scATAC-seq'
+- git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
+  commit:  cf8c110783c09700220b7e5e4368501ab2c3b0f7
 
 - git:     https://github.com/Taiji-pipeline/Taiji-fusion.git
   commit:  a2ef0b3c162028ba1bd89c7f151b3e703f4cde8d
@@ -51,7 +48,7 @@ extra-deps:
   commit:  d790e030e6e08b04dc0971221b6054d6700d82e7
 
 - git:     https://github.com/kaizhang/bioinformatics-toolkit.git
-  commit:  426ee4e6ddb620579d4483fb692ed454077b807b
+  commit:  89b8d1cdf4fa7b075794c37c070cab8ac27acfaf
   subdirs:
       - bioinformatics-toolkit
 
@@ -65,13 +62,9 @@ extra-deps:
 - network-transport-tcp-0.8.0
 - distributed-static-0.3.9
 
-#- git:     https://github.com/kaizhang/SciFlow.git
-#  commit:  c094c0483afa1e262c6048101d2566a76e2e9b19
-#  subdirs:
-#      - SciFlow
-#      - SciFlow-app
-#      - SciFlow-remote
-
-- '../../SciFlow/SciFlow'
-- '../../SciFlow/SciFlow-app'
-- '../../SciFlow/SciFlow-remote'
+- git:     https://github.com/kaizhang/SciFlow.git
+  commit:  c9d85008e9db598d2addc8fe999e1abad9147e1c
+  subdirs:
+      - SciFlow
+      - SciFlow-app
+      - SciFlow-remote

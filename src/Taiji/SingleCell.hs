@@ -38,7 +38,7 @@ computeRanksCluster (tfFl, ((nm, peakFl), expr)) = do
     liftIO $ do
         expr' <- (fmap . fmap) (\(a,b) -> (logBase 2 $ a + 1, exp b)) $
             readExpression 1 nm $ expr^.location
-        openRegions <- readBed $ peakFl ^.location
+        openRegions <- runResourceT $ runConduit $ streamBedGzip (peakFl ^.location) .| sinkList
         idx <- openBBs tfFl
         ranks <- getRanks (findActivePromoters openRegions promoters)
             expr' openRegions idx

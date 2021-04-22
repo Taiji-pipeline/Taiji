@@ -92,8 +92,8 @@ mergeDomains regions = runIdentity $ runConduit $ mergeBedWith f regions .|
         sortBy (comparing (^._data)) xs
     mergeFn xs =
         let nm = head xs ^._data
-            beds = runIdentity $ runConduit $ mergeBed xs .| sinkList
-        in map (\x -> x & _data .~ nm) beds
+            beds = runIdentity $ runConduit $ mergeBed (map convert xs) .| sinkList
+        in map (\x -> BEDExt x nm) beds
 {-# INLINE mergeDomains #-}
 
 -- | Compute the 2D distal domains (enhancer regions) for a list of genes.

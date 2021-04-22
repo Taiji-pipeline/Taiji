@@ -67,10 +67,13 @@ instance SCATACSeqConfig TaijiConfig where
     _scatacseq_minimal_fragment = _scatac_minimal_fragment . _taiji_scatac_options
     _scatacseq_cluster_resolution_list = _scatac_cluster_resolution_list . _taiji_scatac_options
     _scatacseq_cluster_resolution = _scatac_cluster_resolution . _taiji_scatac_options
+    _scatacseq_do_subclustering = _scatac_do_subclustering . _taiji_scatac_options
     _scatacseq_subcluster_resolution = _scatac_subcluster_resolution . _taiji_scatac_options
     _scatacseq_cluster_optimizer = _scatac_cluster_optimizer . _taiji_scatac_options
+    _scatacseq_remove_doublets = _scatac_remove_doublets . _taiji_scatac_options
     _scatacseq_doublet_score_cutoff = _scatac_doublet_score_cutoff . _taiji_scatac_options
     _scatacseq_cluster_by_window = _scatac_cluster_by_window . _taiji_scatac_options
+    _scatacseq_cluster_exclude = _scatac_cluster_exclude . _taiji_scatac_options
     _scatacseq_window_size = _scatac_window_size . _taiji_scatac_options
     _scatacseq_cell_barcode_length = _scatac_cell_barcode_length . _taiji_scatac_options
 
@@ -113,8 +116,6 @@ build "wf" [t| SciFlow TaijiConfig |] $ do
 
     namespace "SCATAC" SCATACSeq.builder
     namespace "SCRNA" SCRNASeq.builder
-    --["SCATAC_Find_TFBS", "SCATAC_Make_CutSite_Index",
-    --    "DropSeq_Quantification" ] ~> "Compute_Ranks_SC_Prep"
     ["SCATAC_Find_TFBS", "SCATAC_Call_Peaks", "SCATAC_Gene_Acc"] ~>
         "Compute_Ranks_SC_Prep"
 

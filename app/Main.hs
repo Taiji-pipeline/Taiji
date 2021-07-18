@@ -29,6 +29,7 @@ import           Taiji.Pipeline.SC.ATACSeq.Types (SCATACSeqConfig (..))
 import           Taiji.Pipeline.RNASeq.Types (RNASeqConfig (..))
 import           Taiji.Pipeline.SC.RNASeq.Types (SCRNASeqConfig (..))
 
+
 instance ATACSeqConfig TaijiConfig where
     _atacseq_output_dir = (<> "/ATACSeq") . _taiji_output_dir
     _atacseq_input = _taiji_input
@@ -70,7 +71,6 @@ instance SCATACSeqConfig TaijiConfig where
     _scatacseq_do_subclustering = _scatac_do_subclustering . _taiji_scatac_options
     _scatacseq_subcluster_resolution = _scatac_subcluster_resolution . _taiji_scatac_options
     _scatacseq_cluster_optimizer = _scatac_cluster_optimizer . _taiji_scatac_options
-    _scatacseq_remove_doublets = _scatac_remove_doublets . _taiji_scatac_options
     _scatacseq_doublet_score_cutoff = _scatac_doublet_score_cutoff . _taiji_scatac_options
     _scatacseq_cluster_by_window = _scatac_cluster_by_window . _taiji_scatac_options
     _scatacseq_cluster_exclude = _scatac_cluster_exclude . _taiji_scatac_options

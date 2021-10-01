@@ -5,8 +5,22 @@ Taiji -- multi-omics bioinformatics pipeline
 ![Continuous integration](https://github.com/Taiji-pipeline/Taiji/workflows/Continuous%20integration/badge.svg)
 ![GitHub All Releases](https://img.shields.io/github/downloads/Taiji-pipeline/Taiji/total)
 
-Taiji is an integrated analysis pipeline for analyzing bulk/single-cell ATAC-seq and RNA-seq data.
+Taiji is an integrative analysis pipeline for analyzing bulk/single-cell ATAC-seq and RNA-seq data.
 Please go to this [website](https://taiji-pipeline.github.io/) for documentation and tutorials. 
+
+- Joint analysis of ATAC-seq, RNA-seq and Hi-C datasets.
+- Integrate multiple single cell datasets, scale to more than 1 million cells!
+
+The design philosophy of the Taiji pipeline is focused on:
+
+- Correctness: We only include reliable algorithms and
+    make every effort to ensure the implementations are bug-free.
+- Performance: We code algorithms from scratch when necessary to
+    ensure the pipeline can scale to large datasets (thousands of samples at least).
+- Convinence: Most analyses have multipe entry points, e.g., Fastq, Bam or Bed.
+    The execution of the pipeline requires only a single command.
+
+We achieve these at the expense of customization. This will be improved in the future.
 
 Installation
 ------------

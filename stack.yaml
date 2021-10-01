@@ -1,4 +1,4 @@
-resolver: lts-18.2
+resolver: lts-18.12
 
 packages:
 - '.'
@@ -12,31 +12,31 @@ flags:
 extra-deps:
 
 - git:     https://github.com/Taiji-pipeline/Taiji-utils.git
-  commit:  c970d24adcb3a4a141f7ee205ba2af60f7c65717
+  commit:  f5e009cf7a9a683f7e43bf97fb33c758ba13d97b
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
-  commit:  251337aea1e9449c161b634fdb316f47f2f766f2
+  commit:  90f242992001be3672ddc2c1749beff432bbc5f3
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
-  commit:  48ff0a243df42796000b8caaf61f2907b92c7d95
+  commit:  12d62074c50f746482c3c2db4e5b47bc43803a60
 
 - git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
-  commit:  7f34241225f9033a96050bde6ba958b8519041af
+  commit:  a567e632e1167d7105974e1acf87be9f356fc494
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  9fc7181d071866279fbed19ffc5768d77ab5e66a
+  commit:  ba7a073b56bf4ca60a227d70b4508f2f83a57d16
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
-  commit:  f513e533dc23953fa65076bf2debc8c68c9f6d79
+  commit:  0362dc0fc0024ff474f4d582d048852444eac5b9
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-  commit:  9e14e4ffb40b7834f10c0bb2cceaefca5ea6310f
+  commit:  6e912364ddce0f7ddcaae7938cd9696aac4937ca
 
 - git:     https://github.com/Taiji-pipeline/Taiji-fusion.git
   commit:  a2ef0b3c162028ba1bd89c7f151b3e703f4cde8d
 
 - git:     https://github.com/kaizhang/HsHTSLib.git
-  commit:  c116cfa29e33d3142a6cb502f1dc4c02066d0aa9
+  commit:  a2fcc435fc752152f06f14e0cfa56153fa0b7d02
 
 - git:     https://github.com/kaizhang/ChromVAR.git
   commit:  d64dd55579c8db9625028065b4cb3314e8f0c4a9
@@ -48,7 +48,7 @@ extra-deps:
   commit:  d790e030e6e08b04dc0971221b6054d6700d82e7
 
 - git:     https://github.com/kaizhang/bioinformatics-toolkit.git
-  commit:  89b8d1cdf4fa7b075794c37c070cab8ac27acfaf
+  commit:  463cb8d16230a0777072e8793338b89a7c420487
   subdirs:
       - bioinformatics-toolkit
 
@@ -63,7 +63,7 @@ extra-deps:
 - distributed-static-0.3.9
 
 - git:     https://github.com/kaizhang/SciFlow.git
-  commit:  c9d85008e9db598d2addc8fe999e1abad9147e1c
+  commit:  ee510340b54f4e2c416cc6e121c767885abce374
   subdirs:
       - SciFlow
       - SciFlow-app

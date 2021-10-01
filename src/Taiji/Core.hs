@@ -49,7 +49,7 @@ builder = do
     node "HiC_Read_Input" [| \_ -> do
         input <- asks _taiji_input
         liftIO $ do
-            hic <- mkInputReader input "HiC" HiC
+            hic <- mkInputReader input "HiC" (\_ x -> HiC x)
             return $ getHiCLoops hic
         |] $ doc .= "Read HiC loops from input file."
 

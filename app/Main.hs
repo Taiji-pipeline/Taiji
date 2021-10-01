@@ -29,7 +29,6 @@ import           Taiji.Pipeline.SC.ATACSeq.Types (SCATACSeqConfig (..))
 import           Taiji.Pipeline.RNASeq.Types (RNASeqConfig (..))
 import           Taiji.Pipeline.SC.RNASeq.Types (SCRNASeqConfig (..))
 
-
 instance ATACSeqConfig TaijiConfig where
     _atacseq_output_dir = (<> "/ATACSeq") . _taiji_output_dir
     _atacseq_input = _taiji_input
@@ -38,7 +37,7 @@ instance ATACSeqConfig TaijiConfig where
     _atacseq_genome_fasta = _taiji_genome
     _atacseq_genome_index = Just . _taiji_genome_index
     _atacseq_motif_file = _taiji_motif_file
-    _atacseq_bwa_seed_length = _taiji_bwa_seed_length
+    _atacseq_bwa_seed_length = fromMaybe 32 . _taiji_bwa_seed_length
     _atacseq_callpeak_opts config = def & mode .~ NoModel (-100) 200
         & cutoff .~ QValue (fromMaybe 0.05 $ _taiji_callpeak_fdr config)
         & callSummits .~ True

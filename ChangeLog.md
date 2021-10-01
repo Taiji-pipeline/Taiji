@@ -1,9 +1,9 @@
 v1.3.0 (2021-07-18)
 ===================
 
-- First offical release of the single cell ATAC-seq pipeline.
-- A lof of improvments on single cell analysis pipeline.
-- Create signal enrichment bigwig file for the ATAC-seq pipeline.
+- First offcial release of the single-cell ATAC-seq pipeline.
+- A lot of improvments to single-cell analysis pipeline.
+- Create signal enrichment bigwig files for the ATAC-seq pipeline.
 - Bug fix: #19
 
 v1.2.1 (2020-06-27)

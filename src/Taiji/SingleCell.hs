@@ -80,6 +80,6 @@ mkTFBSMap = mapC (\x -> (x^._bed, [x^._data])) .| sinkList >>=
 builder :: Builder ()
 builder = do
     uNode "Compute_Ranks_SC_Prep" [| return . prepareData |]
-    nodePar "Compute_Ranks_SC" 'computeRanksCluster $ return ()
+    nodePar "Compute_Ranks_SC" [| computeRanksCluster |] $ return ()
     node "Output_Ranks_SC" [| outputRanksCluster "/Rank/Cluster/" |] $ return ()
     path ["Compute_Ranks_SC_Prep", "Compute_Ranks_SC", "Output_Ranks_SC"]

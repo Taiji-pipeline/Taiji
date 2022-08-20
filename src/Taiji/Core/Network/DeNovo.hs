@@ -84,7 +84,7 @@ getTFBS :: Monad m
 getTFBS peaks = concatMapC f .| sinkList >>=
     return . (fmap . fmap) nub' . bedToTree (++)
   where
-    f site = case IM.elems (intersecting peaks site) of
+    f site = case IM.elems (within peaks site) of
         [] -> Nothing
         xs -> Just $ (bed, [SiteInfo (getTFName site) siteSc (maximum xs)])
       where

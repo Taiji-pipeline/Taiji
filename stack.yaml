@@ -1,4 +1,4 @@
-resolver: lts-18.12
+resolver: lts-19.19
 
 packages:
 - '.'
@@ -12,25 +12,25 @@ flags:
 extra-deps:
 
 - git:     https://github.com/Taiji-pipeline/Taiji-utils.git
-  commit:  f5e009cf7a9a683f7e43bf97fb33c758ba13d97b
+  commit:  7dbe3dfdcdfc0a5f28bfe3c6162cf9f9a56bda91
 
 - git:     https://github.com/Taiji-pipeline/bio-pipelines.git
-  commit:  90f242992001be3672ddc2c1749beff432bbc5f3
+  commit:  453223010d0f3b94d43fecc65e1e105fbb7e6354
 
 - git:     https://github.com/Taiji-pipeline/bio-experiments.git
-  commit:  12d62074c50f746482c3c2db4e5b47bc43803a60
+  commit:  ffea141128e7b63a21162c76358194ad433a19a9
 
 - git:     https://github.com/Taiji-pipeline/Taiji-RNA-seq.git
-  commit:  a567e632e1167d7105974e1acf87be9f356fc494
+  commit:  747625a6a6eec34af5d948ed99791998bbb07936
 
 - git:     https://github.com/Taiji-pipeline/Taiji-ATAC-seq.git
-  commit:  ba7a073b56bf4ca60a227d70b4508f2f83a57d16
+  commit:  e1aef69746ca52f07dc5ba3bbe6b72e75b1f271a
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scRNA-seq.git
-  commit:  0362dc0fc0024ff474f4d582d048852444eac5b9
+  commit:  989a71d593806b8726c37b61f79b132b4c9a6a8d
 
 - git:     https://github.com/Taiji-pipeline/Taiji-scATAC-seq.git
-  commit:  6e912364ddce0f7ddcaae7938cd9696aac4937ca
+  commit:  86559067dd3dd374bdfda93c1f1aaf2fc30de4f3
 
 - git:     https://github.com/Taiji-pipeline/Taiji-fusion.git
   commit:  a2ef0b3c162028ba1bd89c7f151b3e703f4cde8d
@@ -38,32 +38,34 @@ extra-deps:
 - git:     https://github.com/kaizhang/HsHTSLib.git
   commit:  a2fcc435fc752152f06f14e0cfa56153fa0b7d02
 
-- git:     https://github.com/kaizhang/ChromVAR.git
-  commit:  d64dd55579c8db9625028065b4cb3314e8f0c4a9
-
 - git:     https://github.com/kaizhang/matrix-sized.git
-  commit:  aed69651b2da5ca4c9076c8c4d981b876932e5b8
+  commit:  2c26f974936b20bdae3e17c92d8ff43c83587348
 
 - git:     https://github.com/kaizhang/haskell-igraph.git
-  commit:  d790e030e6e08b04dc0971221b6054d6700d82e7
+  commit:  de809a8ff9486c8bdce9a620ca7357a61bc64abb
 
 - git:     https://github.com/kaizhang/bioinformatics-toolkit.git
-  commit:  463cb8d16230a0777072e8793338b89a7c420487
+  commit:  b8949495069a61e56ae125ee5e4f87b9a423868f
   subdirs:
       - bioinformatics-toolkit
 
+- git:     https://github.com/Taiji-pipeline/ftp-client.git
+  commit:  9c4c577ea39c85e5da28b7fd76c54b31743fc9df
+  subdirs:
+      - ftp-client-conduit
+
 - bbi-0.1.1
 - clustering-0.4.1
-- jmacro-0.6.17
+- jmacro-0.6.17.1
 
-- git:     https://github.com/Taiji-pipeline/distributed-process.git
-  commit:  e143f6bce9d7f1e13b0d12f11763f6f24d2da4df
+- git:     https://github.com/haskell-distributed/distributed-process.git
+  commit:  8de080874b7671186af8dc04deb471e909b10719
 - distributed-process-monad-control-0.5.1.3
 - network-transport-tcp-0.8.0
 - distributed-static-0.3.9
 
 - git:     https://github.com/kaizhang/SciFlow.git
-  commit:  ee510340b54f4e2c416cc6e121c767885abce374
+  commit:  6c617a15a99596c9fb50ef1034e9da33c1111f7e
   subdirs:
       - SciFlow
       - SciFlow-app

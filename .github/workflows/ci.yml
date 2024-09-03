@@ -100,7 +100,7 @@ jobs:
     needs: [build_macos, build_ubuntu, build_centos]
     steps:
       - name: Download
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4.1.7
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
